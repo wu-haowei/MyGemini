@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Shopping Cart with IndexedDB</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div id="app">
+        <div v-if="isLoading || isProcessingOrder" class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>{{ $t('shopName') }}</h1>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="language-select">{{ $t('language') }}: </label>
+                <select id="language-select" v-model="locale" @change="$i18n.locale = locale">
+                    <option value="zh-TW">繁體中文</option>
+                    <option value="zh-CN">简体中文</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Carousel -->
+        <div class="swiper-container" style="margin-bottom: 30px;">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide" v-for="(image, index) in carouselImages" :key="index">
+                    <img :src="image.url" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+            </div>
+            <!-- Add Pagination -->
+            <div class="swiper-pagination"></div>
+            <!-- Add Navigation -->
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+        </div>
+
+        <div class="container">
+            <div class="products">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2>{{ $t('productList') }}</h2>
+                    <div>
+                        <button @click="openModal('orderHistory')">{{ $t('viewOrderHistory') }}</button>
+                        <button @click="openModal('productManagement')" style="margin-left: 10px;">{{
+                            $t('productManagement') }}</button>
+                        <button @click="openModal('carouselManagement')" style="margin-left: 10px;">{{
+                            $t('manageCarousel') }}</button>
+                    </div>
+                </div>
+
+                <div class="products-list">
+                    <div v-for="product in filteredProducts" :key="product.id" class="product-card"
+                        :class="{ deleted: product.deleted }">
+                        <div class="product-header">
+                            <h3>{{ product.name }}</h3>
+                        </div>
+                        <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
+                        <p>{{ $t('stock') }}: {{ product.stock }}</p>
+                        <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
+                        <button @click="addToCart(product)" :disabled="product.stock === 0" class="add-to-cart-btn">
+                            <i class="material-icons">add_shopping_cart</i>
+                            <span>{{ $t('addToCart') }}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cart">
+                <h2>{{ $t('cart') }}</h2>
+                <button v-if="cart.length > 0" @click="clearCart" class="remove-btn" style="margin-bottom: 15px;">{{
+                    $t('clearCart') }}</button>
+                <div v-if="isAddingToEmptyCart" class="loading-overlay"
+                    style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.8); z-index: 10;">
+                    <div class="spinner" style="width: 40px; height: 40px;"></div>
+                </div>
+                <div v-if="cart.length === 0" class="empty-cart">
+                    {{ $t('cartEmpty') }}
+                </div>
+                <div v-else>
+                    <div class="cart-items-container" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+                        <div v-for="item in cart" :key="item.id" class="cart-item">
+                            <div>
+                                <strong>{{ item.name }}</strong>
+                                <br>
+                                <br>
+                                <small>{{ formattedPrice(item.price) }}</small>
+                            </div>
+                            <div class="quantity-controls">
+                                <button @click="updateQuantity(item, -1)">-</button>
+                                <span>{{ item.quantity }}</span>
+                                <button @click="updateQuantity(item, 1)">+</button>
+                            </div>
+                            <div>
+                                <button @click="removeFromCart(item.id)" class="icon-button remove-btn">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cart-summary"
+                        style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>{{ $t('totalQuantity') }}:</span>
+                            <span>{{ totalQuantity }}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>{{ $t('total') }}</span>
+                            <span>{{ formattedPrice(cartTotal) }}</span>
+                        </div>
+                        <button @click="startCheckout" :disabled="cart.length === 0"
+                            style="margin-top: 10px; align-self: flex-end;">{{ $t('checkout') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'checkout'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('checkout') }}</h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <h3>{{ $t('checkoutSummary') }}</h3>
+                    <ul>
+                        <li v-for="item in cart" :key="item.id">
+                            {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
+                        </li>
+                    </ul>
+                    <p><strong>{{ $t('total') }}: {{ formattedPrice(cartTotal) }}</strong></p>
+
+                    <h3>{{ $t('choosePaymentMethod') }}</h3>
+                    <div>
+                        <label style="margin-right: 15px;">
+                            <input type="radio" v-model="paymentMethod" value="credit_card"> {{ $t('creditCard') }}
+                        </label>
+                        <label style="margin-right: 15px;">
+                            <input type="radio" v-model="paymentMethod" value="line_pay"> {{ $t('linePay') }}
+                        </label>
+                        <label>
+                            <input type="radio" v-model="paymentMethod" value="cash"> {{ $t('cash') }}
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="processCheckout">{{ $t('confirmCheckout') }}</button>
+                    <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'orderConfirmation'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('orderCreated') }}</h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ $t('orderId') }}: <strong>{{ orderConfirmation.orderId }}</strong></p>
+                    <p>{{ $t('total') }}: <strong>{{ formattedPrice(orderConfirmation.total) }}</strong></p>
+                    <p>{{ $t('paymentMethod') }}: <strong>{{ $t(orderConfirmation.paymentMethod) }}</strong></p>
+                    <h3>{{ $t('orderDetails') }}:</h3>
+                    <ul>
+                        <li v-for="item in orderConfirmation.items" :key="item.id">
+                            {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
+                        </li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button @click="closeModal()">{{ $t('close') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'orderHistory'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('orderHistory') }}</h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div v-if="orderHistory.length === 0" class="modal-body">
+                    <p>{{ $t('noOrderHistory') }}</p>
+                </div>
+                <div v-else class="modal-body">
+                    <div v-for="order in orderHistory" :key="order.orderId"
+                        style="border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
+                        <h3>{{ $t('orderId') }}: {{ order.orderId }}</h3>
+                        <p>{{ $t('date') }}: {{ new Date(order.timestamp).toLocaleString() }}</p>
+                        <p>{{ $t('total') }}: {{ formattedPrice(order.total) }}</p>
+                        <p>{{ $t('paymentMethod') }}: {{ $t(order.paymentMethod) }}</p>
+                        <h4>{{ $t('orderDetails') }}:</h4>
+                        <ul>
+                            <li v-for="item in order.items" :key="item.id">
+                                {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="closeModal()" class="remove-btn">{{ $t('closeOrderHistory') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'editStock'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('editStock') }}</h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ $t('productName') }}: <strong>{{ currentModal.data.name }}</strong></p>
+                    <label for="new-stock">{{ $t('newStock') }}: </label>
+                    <input type="number" id="new-stock" v-model.number="currentModal.data.newStock" min="0"
+                        style="padding: 8px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                    <br><br>
+                    <label for="stock-reason">{{ $t('reason') }}: </label>
+                    <input type="text" id="stock-reason" v-model="currentModal.data.stockChangeReason"
+                        :placeholder="$t('stockChangeReason')"
+                        style="padding: 8px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px; width: 70%;">
+                </div>
+                <div class="modal-footer">
+                    <button @click="confirmEditStock">{{ $t('confirm') }}</button>
+                    <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'stockHistory'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('stockHistory') }} <span v-if="currentModal.data.product">- {{
+                            currentModal.data.product.name }}</span></h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div v-if="stockHistory.length === 0" class="modal-body">
+                    <p>{{ $t('noStockHistory') }}</p>
+                </div>
+                <div v-else class="modal-body">
+                    <div v-for="entry in stockHistory" :key="entry.id"
+                        style="border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
+                        <p><strong>{{ $t('date') }}:</strong> {{ new Date(entry.timestamp).toLocaleString() }}</p>
+                        <p><strong>{{ $t('reason') }}:</strong> {{ entry.reason }}</p>
+                        <p><strong>{{ $t('stock') }}:</strong> {{ entry.oldStock }} -> {{ entry.newStock }}</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="closeModal()" class="remove-btn">{{ $t('close') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'productManagement'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('productManagement') }}</h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="add-product-section"
+                        style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                        <h3>{{ $t('addProduct') }}</h3>
+                        <input type="text" v-model="newProductName" :placeholder="$t('productName')"
+                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="number" v-model.number="newProductPrice" :placeholder="$t('price')"
+                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="number" v-model.number="newProductStock" :placeholder="$t('stock')"
+                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                        <button @click="addNewProduct">{{ $t('addProduct') }}</button>
+                    </div>
+                    <div class="products-list">
+                        <div v-for="product in productsWithSoldQuantity" :key="product.id" class="product-card"
+                            :class="{ deleted: product.deleted }">
+                            <div class="product-header">
+                                <h3>{{ product.name }}</h3>
+                                <div class="product-actions dropdown">
+                                    <button class="icon-button dropbtn">
+                                        <i class="material-icons">more_vert</i>
+                                    </button>
+                                    <div class="dropdown-content">
+                                        <a href="#"
+                                            @click.prevent="openModal('editStock', { product: product, newStock: product.stock, stockChangeReason: '' })"><i
+                                                class="material-icons">edit</i> {{ $t('editStock') }}</a>
+                                        <a href="#" @click.prevent="viewStockHistory(product)"><i
+                                                class="material-icons">history</i> {{ $t('viewHistory') }}</a>
+                                        <a v-if="!product.deleted" href="#" @click.prevent="deleteProduct(product)"><i
+                                                class="material-icons">delete</i> {{ $t('deleteProduct') }}</a>
+                                        <a v-if="product.deleted" href="#" @click.prevent="restoreProduct(product)"><i
+                                                class="material-icons">restore</i> {{ $t('restore') }}</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
+                            <p>{{ $t('stock') }}: {{ product.stock }}</p>
+                            <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="closeModal()" class="remove-btn">{{ $t('closeProductManagement') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentModal && currentModal.name === 'carouselManagement'" class="modal-overlay"
+            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                            class="material-icons">arrow_back</i></button>
+                    <h2>{{ $t('manageCarousel') }}</h2>
+                    <button @click="closeModal()" class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="add-image-section"
+                        style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                        <h3>{{ $t('addImage') }}</h3>
+                        <input type="text" v-model="newImageUrl" :placeholder="$t('imageUrl')"
+                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; width: 70%;">
+                        <button @click="addCarouselImage">{{ $t('addImage') }}</button>
+                    </div>
+                    <div class="images-list">
+                        <div v-for="(image, index) in carouselImages" :key="index" class="image-card"
+                            style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px;">
+                            <img :src="image.url"
+                                style="width: 100px; height: 50px; object-fit: cover; border-radius: 4px;">
+                            <button @click="removeCarouselImage(image)" class="remove-btn"><i
+                                    class="material-icons">delete</i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="closeModal()" class="remove-btn">{{ $t('close') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Dexie.js (for IndexedDB) CDN -->
+    <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+    <!-- Vue I18n CDN -->
+    <script src="https://unpkg.com/vue-i18n@9/dist/vue-i18n.global.js"></script>
+    <!-- I18n Messages -->
+    <script src="i18n.js"></script>
+
+    <script>
+        const { createApp } = Vue;
+        const { createI18n } = VueI18n;
+
+        const i18n = createI18n({
+            locale: 'zh-TW', // 預設語言
+            fallbackLocale: 'en-US',
+            messages,
+        });
+
+        const app = createApp({
+            data() {
+                return {
+                    products: [],
+                    cart: [], // 購物車內容
+                    db: null,    // IndexedDB instance
+                    newProductName: '',
+                    newProductPrice: null,
+                    newProductStock: 0,
+                    paymentMethod: 'credit_card', // 預設支付方式
+                    orderConfirmation: null, // 儲存訂單確認資訊
+                    orderHistory: [], // 儲存歷史訂單
+                    isLoading: true, // 控制初始載入畫面
+                    isProcessingOrder: false, // 控制結帳處理載入畫面
+                    isAddingToEmptyCart: false, // 控制加入空購物車時的載入畫面
+                    locale: 'zh-TW', // 預設語言為繁體中文
+                    stockHistory: [],
+                    carouselImages: [],
+                    newImageUrl: '',
+                    modalStack: [] // Centralized modal management
+                };
+            },
+            computed: {
+                cartTotal() {
+                    return this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+                },
+                totalQuantity() {
+                    return this.cart.reduce((total, item) => total + item.quantity, 0);
+                },
+                productsWithSoldQuantity() {
+                    const soldQuantities = {};
+                    this.orderHistory.forEach(order => {
+                        order.items.forEach(item => {
+                            soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
+                        });
+                    });
+
+                    return this.products.map(product => ({
+                        ...product,
+                        soldQuantity: soldQuantities[product.id] || 0
+                    }));
+                },
+                filteredProducts() {
+                    return this.productsWithSoldQuantity.filter(p => !p.deleted);
+                },
+                currentModal() {
+                    return this.modalStack.length > 0 ? this.modalStack[this.modalStack.length - 1] : null;
+                },
+                showModalOverlay() {
+                    return this.modalStack.length > 0;
+                }
+            },
+            methods: {
+                openModal(name, data = {}) {
+                    this.modalStack.push({ name, data });
+                },
+                closeModal() {
+                    this.modalStack.pop();
+                },
+                closeAllModals() {
+                    this.modalStack = [];
+                },
+                getModalZIndex(index) {
+                    return 1000 + index;
+                },
+                generateUUID() {
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                },
+                formattedPrice(price) {
+                    const locale = this.locale;
+                    const localeConfig = messages[locale];
+
+                    if (localeConfig && localeConfig.currencyFormat) {
+                        const convertedPrice = price * (localeConfig.exchangeRate || 1);
+                        const finalPrice = Number.isInteger(convertedPrice) ? convertedPrice : convertedPrice.toFixed(2);
+                        return localeConfig.currencyFormat
+                            .replace('{symbol}', localeConfig.currencySymbol || '')
+                            .replace('{value}', finalPrice);
+                    }
+                    return `NT$${price}`;
+                },
+                async setupDatabase() {
+                    this.db = new Dexie('ShoppingCartDB');
+                    this.db.version(81).stores({
+                        products: 'id, name, price, stock, deleted',
+                        cart: '++id, &productId, name, price, quantity',
+                        orders: '++id, orderId, total, paymentMethod, timestamp',
+                        stockHistory: '++id, productId, timestamp, oldStock, newStock, reason',
+                        carouselImages: '++id, &url'
+                    });
+                },
+                async loadProducts() {
+                    if (!this.db) return;
+                    try {
+                        this.products = await this.db.products.toArray();
+                    } catch (error) {
+                        console.error("Could not load products from IndexedDB:", error);
+                    }
+                },
+                async loadCart() {
+                    if (!this.db) return;
+                    try {
+                        const cartItems = await this.db.cart.toArray();
+                        this.cart = cartItems;
+                    } catch (error) {
+                        console.error("Could not load cart from IndexedDB:", error);
+                    }
+                },
+                async addToCart(product) {
+                    if (product.stock === 0) {
+                        alert(this.$t('productSoldOut'));
+                        return;
+                    }
+
+                    const wasCartEmpty = this.cart.length === 0;
+                    if (wasCartEmpty) {
+                        this.isAddingToEmptyCart = true;
+                    }
+
+                    try {
+                        await this.db.transaction('rw', this.db.cart, async (trans) => {
+                            const cartTable = trans.table('cart');
+                            const existingItem = await cartTable.where('productId').equals(product.id).first();
+
+                            if (existingItem) {
+                                if (existingItem.quantity >= product.stock) {
+                                    alert(this.$t('maxQuantityReached'));
+                                    return;
+                                }
+                                await cartTable.update(existingItem.id, {
+                                    quantity: existingItem.quantity + 1
+                                });
+                            } else {
+                                await cartTable.add({
+                                    productId: product.id,
+                                    name: product.name,
+                                    price: product.price,
+                                    quantity: 1
+                                });
+                            }
+                        });
+                        await this.loadCart();
+
+                        if (wasCartEmpty) {
+                            await new Promise(resolve => setTimeout(resolve, 600));
+                            this.isAddingToEmptyCart = false;
+                        }
+
+                    } catch (error) {
+                        if (wasCartEmpty) {
+                            this.isAddingToEmptyCart = false;
+                        }
+                        console.error("Error adding to cart:", error);
+                    }
+                },
+                async removeFromCart(itemId) {
+                    try {
+                        await this.db.cart.delete(itemId);
+                        await this.loadCart();
+                    } catch (error) {
+                        console.error("Error removing from cart:", error);
+                    }
+                },
+                async updateQuantity(item, change) {
+                    try {
+                        const productInStock = this.products.find(p => p.id === item.productId);
+                        const newQuantity = item.quantity + change;
+
+                        if (change > 0 && productInStock && newQuantity > productInStock.stock) {
+                            alert(this.$t('maxQuantityReached'));
+                            return;
+                        }
+
+                        await this.db.transaction('rw', this.db.cart, async (trans) => {
+                            if (newQuantity <= 0) {
+                                await trans.cart.delete(item.id);
+                            } else {
+                                await trans.cart.update(item.id, { quantity: newQuantity });
+                            }
+                        });
+                        await this.loadCart();
+                    } catch (error) {
+                        console.error("Error updating quantity:", error);
+                    }
+                },
+                async addNewProduct() {
+                    if (this.newProductName && this.newProductPrice > 0) {
+                        const newProduct = {
+                            id: this.generateUUID(),
+                            name: this.newProductName,
+                            price: parseFloat(this.newProductPrice),
+                            stock: this.newProductStock,
+                            deleted: false
+                        };
+                        await this.db.products.add(newProduct);
+                        await this.loadProducts();
+                        this.newProductName = '';
+                        this.newProductPrice = null;
+                        this.newProductStock = 0;
+                    } else {
+                        alert(this.$t('enterValidProduct'));
+                    }
+                },
+                async deleteProduct(product) {
+                    if (confirm(this.$t('deleteConfirmation', { productName: product.name }))) {
+                        try {
+                            await this.db.transaction('rw', this.db.products, this.db.cart, async (trans) => {
+                                await trans.products.update(product.id, { deleted: true });
+                                await trans.cart.where('productId').equals(product.id).delete();
+                            });
+                            await this.loadProducts();
+                            await this.loadCart();
+                        } catch (error) {
+                            console.error("Error deleting product:", error);
+                            alert("Failed to delete product.");
+                        }
+                    }
+                },
+                async restoreProduct(product) {
+                    try {
+                        await this.db.transaction('rw', this.db.products, async (trans) => {
+                            await trans.products.update(product.id, { deleted: false });
+                        });
+                        await this.loadProducts();
+                    } catch (error) {
+                        console.error("Error restoring product:", error);
+                        alert("Failed to restore product.");
+                    }
+                },
+                async clearCart() {
+                    try {
+                        await this.db.cart.clear();
+                        await this.loadCart();
+                    } catch (error) {
+                        console.error("Error clearing cart:", error);
+                    }
+                },
+                startCheckout() {
+                    this.openModal('checkout');
+                },
+                async processCheckout() {
+                    if (this.cart.length === 0) {
+                        alert(this.$t('cartEmptyCheckout'));
+                        return;
+                    }
+
+                    if (!this.paymentMethod) {
+                        alert(this.$t('selectPaymentMethod'));
+                        return;
+                    }
+
+                    for (const cartItem of this.cart) {
+                        const product = this.products.find(p => p.id === cartItem.productId);
+                        if (!product || product.stock < cartItem.quantity) {
+                            alert(this.$t('insufficientStock', { productName: cartItem.name, stock: product ? product.stock : 0, quantity: cartItem.quantity }));
+                            return;
+                        }
+                    }
+
+                    try {
+                        this.isProcessingOrder = true; // 開始處理訂單，顯示載入畫面
+
+                        const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        const order = {
+                            orderId: orderId,
+                            total: this.cartTotal,
+                            paymentMethod: this.paymentMethod,
+                            timestamp: new Date().toISOString(),
+                            items: this.cart.map(item => ({ ...item })) // 複製購物車商品，避免引用問題
+                        };
+
+                        await this.db.transaction('rw', this.db.orders, this.db.products, this.db.cart, this.db.stockHistory, async (trans) => {
+                            await trans.orders.add(order);
+
+                            // 減少商品庫存並記錄歷史
+                            for (const cartItem of this.cart) {
+                                const productInDb = await trans.products.get(cartItem.productId); // Get product from DB within transaction
+                                if (productInDb) {
+                                    const oldStock = productInDb.stock; // Use stock from DB
+                                    const newStock = oldStock - cartItem.quantity;
+                                    await trans.products.update(productInDb.id, { stock: newStock });
+                                    await trans.stockHistory.add({
+                                        productId: productInDb.id,
+                                        timestamp: new Date().toISOString(),
+                                        oldStock,
+                                        newStock,
+                                        reason: `Order ${orderId}`
+                                    });
+                                }
+                            }
+
+                            await trans.cart.clear(); // 清空購物車
+                        });
+
+                        await this.loadProducts();
+                        await this.loadCart();
+                        await this.loadOrderHistory();
+
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        this.isProcessingOrder = false; // 處理完成，關閉載入畫面
+                        this.orderConfirmation = order; // 顯示訂單確認資訊
+                        this.closeModal(); // Close checkout modal
+                        this.openModal('orderConfirmation', order); // Open order confirmation modal
+                        alert(this.$t('checkoutSuccess'));
+
+                    } catch (error) {
+                        this.isProcessingOrder = false; // 處理失敗，關閉載入畫面
+                        console.error("Error processing checkout:", error);
+                        alert(this.$t('checkoutFailed'));
+                    }
+                },
+                async toggleOrderHistory() {
+                    await this.loadOrderHistory();
+                    this.openModal('orderHistory');
+                },
+                async loadOrderHistory() {
+                    if (!this.db) return;
+                    try {
+                        this.orderHistory = await this.db.orders.toArray();
+                        this.orderHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    } catch (error) {
+                        console.error("Could not load order history from IndexedDB:", error);
+                    }
+                },
+                startEditStock(product) {
+                    this.openModal('editStock', { product: { ...product }, newStock: product.stock, stockChangeReason: '' });
+                },
+                async confirmEditStock() {
+                    const product = this.currentModal.data.product;
+                    const newStock = this.currentModal.data.newStock;
+                    const stockChangeReason = this.currentModal.data.stockChangeReason;
+
+                    if (newStock < 0) {
+                        alert(this.$t('invalidStock'));
+                        return;
+                    }
+
+                    if (!stockChangeReason) {
+                        alert(this.$t('reasonRequired'));
+                        return;
+                    }
+
+                    try {
+                        await this.db.transaction('rw', this.db.products, this.db.stockHistory, async (trans) => {
+                            // Fetch the latest stock from the database within the transaction
+                            const productInDb = await trans.products.get(product.id);
+                            const oldStock = productInDb ? productInDb.stock : product.stock; // Fallback to current modal data if not found
+
+                            await trans.products.update(product.id, { stock: newStock });
+                            await trans.stockHistory.add({
+                                productId: product.id,
+                                timestamp: new Date().toISOString(),
+                                oldStock,
+                                newStock,
+                                reason: stockChangeReason
+                            });
+                        });
+                        await this.loadProducts();
+                        this.closeModal();
+                    } catch (error) {
+                        console.error("Error confirming stock edit:", error);
+                        alert("Failed to update stock.");
+                    }
+                },
+                cancelEditStock() {
+                    this.closeModal();
+                },
+                async viewStockHistory(product) {
+                    if (!this.db) return;
+                    this.stockHistory = []; // Clear previous history
+                    try {
+                        const history = await this.db.stockHistory.where('productId').equals(product.id).toArray();
+                        this.stockHistory = history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        this.openModal('stockHistory', { product: product });
+                    } catch (error) {
+                        console.error("Could not load stock history from IndexedDB:", error);
+                    }
+                },
+                async logStockChange(productId, oldStock, newStock, reason) {
+                    if (!this.db) return;
+                    try {
+                        await this.db.stockHistory.add({
+                            productId,
+                            timestamp: new Date().toISOString(),
+                            oldStock,
+                            newStock,
+                            reason
+                        });
+                    } catch (error) {
+                        console.error("Error logging stock change:", error);
+                    }
+                },
+                async loadCarouselImages() {
+                    if (!this.db) return;
+                    try {
+                        this.carouselImages = await this.db.carouselImages.toArray();
+                        if (this.carouselImages.length === 0) {
+                            // Add default images if none exist
+                            this.carouselImages = [
+                                { url: 'https://via.placeholder.com/1200x300/42b983/FFFFFF?Text=Slide+1' },
+                                { url: 'https://via.placeholder.com/1200x300/36a476/FFFFFF?Text=Slide+2' },
+                                { url: 'https://via.placeholder.com/1200x300/2c3e50/FFFFFF?Text=Slide+3' }
+                            ];
+                        }
+                    } catch (error) {
+                        console.error("Could not load carousel images from IndexedDB:", error);
+                    }
+                },
+                initSwiper() {
+                    this.$nextTick(() => {
+                        if (this.swiper) {
+                            this.swiper.destroy(true, true);
+                        }
+                        this.swiper = new Swiper('.swiper-container', {
+                            loop: true,
+                            pagination: {
+                                el: '.swiper-pagination',
+                                clickable: true,
+                            },
+                            navigation: {
+                                nextEl: '.swiper-button-next',
+                                prevEl: '.swiper-button-prev',
+                            },
+                            autoplay: {
+                                delay: 3000,
+                                disableOnInteraction: false,
+                            },
+                        });
+                    });
+                },
+                async addCarouselImage() {
+                    if (!this.newImageUrl) return;
+
+                    const existing = this.carouselImages.some(img => img.url === this.newImageUrl);
+                    if (existing) {
+                        alert(this.$t('imageExists'));
+                        return;
+                    }
+
+                    const newImage = { url: this.newImageUrl };
+                    const originalUrl = this.newImageUrl;
+
+                    // 1. Optimistic UI Update
+                    this.carouselImages.push(newImage);
+                    this.newImageUrl = '';
+                    this.initSwiper();
+
+                    // 2. Call the dedicated DB method
+                    try {
+                        await this._dbAddImage(newImage);
+                    } catch (error) {
+                        console.error("Error adding carousel image to DB:", error);
+                        // 3. Revert UI on failure
+                        const index = this.carouselImages.findIndex(img => img.url === newImage.url);
+                        if (index !== -1) {
+                            this.carouselImages.splice(index, 1);
+                        }
+                        this.newImageUrl = originalUrl;
+                        this.initSwiper();
+                        alert(this.$t('dbErrorReverted'));
+                    }
+                },
+
+                async removeCarouselImage(image) {
+                    const index = this.carouselImages.findIndex(img => img.url === image.url);
+                    if (index === -1) return;
+
+                    try {
+                        await this._dbRemoveImage(image.url);
+
+                        // Update UI only after successful DB operation
+                        this.carouselImages.splice(index, 1);
+                        this.initSwiper();
+                    } catch (error) {
+                        console.error("Error removing carousel image from DB:", error);
+                        alert('Failed to remove image.');
+                    }
+                },
+
+                // --- Dedicated DB Methods ---
+                _dbAddImage(image) {
+                    return this.db.transaction('rw', this.db.carouselImages, async (trans) => {
+                        const carouselImagesTable = trans.table('carouselImages');
+                        await carouselImagesTable.add(image);
+                    });
+
+
+                },
+                _dbRemoveImage(url) {
+                    return this.db.transaction('rw', this.db.carouselImages, async (trans) => {
+                        const carouselImagesTable = trans.table('carouselImages');
+                        await carouselImagesTable.where('url').equals(url).delete();
+                    });
+                }
+            },
+            async created() {
+                await this.setupDatabase();
+                await this.loadProducts();
+                await this.loadCart();
+                await this.loadOrderHistory();
+                await this.loadCarouselImages();
+                this.initSwiper();
+                this.isLoading = false;
+            }
+        });
+
+        app.use(i18n);
+        app.mount('#app');
+    </script>
+
+</body>
+
+</html>
