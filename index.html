@@ -1325,14 +1325,14 @@
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         const data = await response.json();
-
-                        if (data.conversion_rates) {
+                        const dataParse = JSON.parse(data.conversion_rates);
+                        if (dataParse) {
                             debugger;
                             for (const localeKey in reactiveMessages) { // Use reactiveMessages
                                 if (reactiveMessages[localeKey].currencySymbol) { // Use reactiveMessages
                                     const targetCurrency = reactiveMessages[localeKey].currencySymbol.replace(/[^a-zA-Z]/g, ''); // Extract currency code from symbol
-                                    if (data.conversion_rates[targetCurrency]) {
-                                        reactiveMessages[localeKey].exchangeRate = data.conversion_rates[targetCurrency]; // Update reactiveMessages
+                                    if (dataParse[targetCurrency]) {
+                                        reactiveMessages[localeKey].exchangeRate = dataParse[targetCurrency]; // Update reactiveMessages
                                     } else {
                                         console.warn(`Exchange rate for ${targetCurrency} not found in API response.`);
                                         reactiveMessages[localeKey].exchangeRate = 1; // Fallback to 1 if not found
