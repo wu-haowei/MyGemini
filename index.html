@@ -1325,7 +1325,7 @@
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         const data = await response.json();
-                        const dataParse = JSON.parse(data);
+                        const dataParse = JSON.parse(data.data);
                         if (dataParse) {
                             debugger;
                             for (const localeKey in reactiveMessages) { // Use reactiveMessages
