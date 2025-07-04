@@ -13,356 +13,361 @@
 <body>
 
     <div id="app">
-        <div v-if="isLoading || isProcessingOrder" class="loading-overlay">
-            <div class="spinner"></div>
-        </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1>{{ $t('shopName') }}</h1>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <label for="language-select">{{ $t('language') }}: </label>
-                <select id="language-select" v-model="locale" @change="$i18n.locale = locale">
-                    <option value="zh-TW">繁體中文</option>
-                    <option value="zh-CN">简体中文</option>
-                    <option value="ja">日本語</option>
-                    <option value="ko">한국어</option>
-                    <option value="en-US">English (US)</option>
-                    <option value="en-GB">English (UK)</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Carousel -->
-        <div class="swiper-container" style="margin-bottom: 30px;">
-            <div class="swiper-wrapper">
-                <div class="swiper-slide" v-for="(image, index) in carouselImages" :key="index">
-                    <img :src="image.url" style="width: 100%; height: 100%; object-fit: cover;">
+        <header class="app-header-fixed">
+            <div class="app-header-content">
+                <h1>{{ $t('shopName') }}</h1>
+                <div class="language-selector">
+                    <label for="language-select">{{ $t('language') }}: </label>
+                    <select id="language-select" v-model="locale" @change="$i18n.locale = locale">
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="zh-CN">简体中文</option>
+                        <option value="ja">日本語</option>
+                        <option value="ko">한국어</option>
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                    </select>
                 </div>
             </div>
-            <!-- Add Pagination -->
-            <div class="swiper-pagination"></div>
-            <!-- Add Navigation -->
-            <div class="swiper-button-next"></div>
-            <div class="swiper-button-prev"></div>
-        </div>
+        </header>
 
-        <div class="container">
-            <div class="products">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h2>{{ $t('productList') }}</h2>
-                    <div>
-                        <button @click="openModal('orderHistory')">{{ $t('viewOrderHistory') }}</button>
-                        <button @click="openModal('productManagement')" style="margin-left: 10px;">{{
-                            $t('productManagement') }}</button>
-                        <button @click="openModal('carouselManagement')" style="margin-left: 10px;">{{
-                            $t('manageCarousel') }}</button>
+        <main class="main-content">
+            <div v-if="isLoading || isProcessingOrder" class="loading-overlay">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Carousel -->
+            <div class="swiper-container">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide" v-for="(image, index) in carouselImages" :key="index">
+                        <img :src="image.url" class="carousel-image">
                     </div>
                 </div>
-
-                <div class="products-list">
-                    <div v-for="product in filteredProducts" :key="product.id" class="product-card"
-                        :class="{ deleted: product.deleted }">
-                        <div class="product-header">
-                            <h3>{{ product.name }}</h3>
-                        </div>
-                        <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
-                        <p>{{ $t('stock') }}: {{ product.stock }}</p>
-                        <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
-                        <button @click="addToCart(product)" :disabled="product.stock === 0" class="add-to-cart-btn">
-                            <i class="material-icons">add_shopping_cart</i>
-                            <span>{{ $t('addToCart') }}</span>
-                        </button>
-                    </div>
-                </div>
+                <!-- Add Pagination -->
+                <div class="swiper-pagination"></div>
+                <!-- Add Navigation -->
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
             </div>
 
-            <div class="cart">
-                <h2>{{ $t('cart') }}</h2>
-                <button v-if="cart.length > 0" @click="clearCart" class="remove-btn" style="margin-bottom: 15px;">{{
-                    $t('clearCart') }}</button>
-                <div v-if="isAddingToEmptyCart" class="loading-overlay"
-                    style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.8); z-index: 10;">
-                    <div class="spinner" style="width: 40px; height: 40px;"></div>
-                </div>
-                <div v-if="cart.length === 0" class="empty-cart">
-                    {{ $t('cartEmpty') }}
-                </div>
-                <div v-else>
-                    <div class="cart-items-container" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
-                        <div v-for="item in cart" :key="item.id" class="cart-item">
-                            <div>
-                                <strong>{{ item.name }}</strong>
-                                <br>
-                                <br>
-                                <small>{{ formattedPrice(item.price) }}</small>
-                            </div>
-                            <div class="quantity-controls">
-                                <button @click="updateQuantity(item, -1)">-</button>
-                                <span>{{ item.quantity }}</span>
-                                <button @click="updateQuantity(item, 1)">+</button>
-                            </div>
-                            <div>
-                                <button @click="removeFromCart(item.id)" class="icon-button remove-btn">
-                                    <i class="material-icons">delete</i>
-                                </button>
-                            </div>
+            <div class="container">
+                <div class="products">
+                    <div class="products-main-header">
+                        <h2>{{ $t('productList') }}</h2>
+                        <div class="products-main-header-buttons">
+                            <button @click="openModal('orderHistory')">{{ $t('viewOrderHistory') }}</button>
+                            <button @click="openModal('productManagement')">{{
+                                $t('productManagement') }}</button>
+                            <button @click="openModal('carouselManagement')">{{
+                                $t('manageCarousel') }}</button>
                         </div>
                     </div>
-                    <div class="cart-summary"
-                        style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>{{ $t('totalQuantity') }}:</span>
-                            <span>{{ totalQuantity }}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>{{ $t('total') }}</span>
-                            <span>{{ formattedPrice(cartTotal) }}</span>
-                        </div>
-                        <button @click="startCheckout" :disabled="cart.length === 0"
-                            style="margin-top: 10px; align-self: flex-end;">{{ $t('checkout') }}</button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div v-if="currentModal && currentModal.name === 'checkout'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('checkout') }}</h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <h3>{{ $t('checkoutSummary') }}</h3>
-                    <ul>
-                        <li v-for="item in cart" :key="item.id">
-                            {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
-                        </li>
-                    </ul>
-                    <p><strong>{{ $t('total') }}: {{ formattedPrice(cartTotal) }}</strong></p>
-
-                    <h3>{{ $t('choosePaymentMethod') }}</h3>
-                    <div>
-                        <label style="margin-right: 15px;">
-                            <input type="radio" v-model="paymentMethod" value="credit_card"> {{ $t('creditCard') }}
-                        </label>
-                        <label style="margin-right: 15px;">
-                            <input type="radio" v-model="paymentMethod" value="line_pay"> {{ $t('linePay') }}
-                        </label>
-                        <label>
-                            <input type="radio" v-model="paymentMethod" value="cash"> {{ $t('cash') }}
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button @click="processCheckout">{{ $t('confirmCheckout') }}</button>
-                    <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="currentModal && currentModal.name === 'orderConfirmation'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('orderCreated') }}</h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <p>{{ $t('orderId') }}: <strong>{{ orderConfirmation.orderId }}</strong></p>
-                    <p>{{ $t('total') }}: <strong>{{ formattedPrice(orderConfirmation.total) }}</strong></p>
-                    <p>{{ $t('paymentMethod') }}: <strong>{{ $t(orderConfirmation.paymentMethod) }}</strong></p>
-                    <h3>{{ $t('orderDetails') }}:</h3>
-                    <ul>
-                        <li v-for="item in orderConfirmation.items" :key="item.id">
-                            {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
-                        </li>
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button @click="closeModal()">{{ $t('close') }}</button>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="currentModal && currentModal.name === 'orderHistory'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('orderHistory') }}</h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div v-if="orderHistory.length === 0" class="modal-body">
-                    <p>{{ $t('noOrderHistory') }}</p>
-                </div>
-                <div v-else class="modal-body">
-                    <div v-for="order in orderHistory" :key="order.orderId"
-                        style="border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
-                        <h3>{{ $t('orderId') }}: {{ order.orderId }}</h3>
-                        <p>{{ $t('date') }}: {{ new Date(order.timestamp).toLocaleString() }}</p>
-                        <p>{{ $t('total') }}: {{ formattedPrice(order.total) }}</p>
-                        <p>{{ $t('paymentMethod') }}: {{ $t(order.paymentMethod) }}</p>
-                        <h4>{{ $t('orderDetails') }}:</h4>
-                        <ul>
-                            <li v-for="item in order.items" :key="item.id">
-                                {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button @click="closeModal()" class="remove-btn">{{ $t('closeOrderHistory') }}</button>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="currentModal && currentModal.name === 'editStock'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('editStock') }}</h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <p>{{ $t('productName') }}: <strong>{{ currentModal.data.name }}</strong></p>
-                    <label for="new-stock">{{ $t('newStock') }}: </label>
-                    <input type="number" id="new-stock" v-model.number="currentModal.data.newStock" min="0"
-                        style="padding: 8px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                    <br><br>
-                    <label for="stock-reason">{{ $t('reason') }}: </label>
-                    <input type="text" id="stock-reason" v-model="currentModal.data.stockChangeReason"
-                        :placeholder="$t('stockChangeReason')"
-                        style="padding: 8px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px; width: 70%;">
-                </div>
-                <div class="modal-footer">
-                    <button @click="confirmEditStock">{{ $t('confirm') }}</button>
-                    <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="currentModal && currentModal.name === 'stockHistory'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('stockHistory') }} <span v-if="currentModal.data.product">- {{
-                            currentModal.data.product.name }}</span></h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div v-if="stockHistory.length === 0" class="modal-body">
-                    <p>{{ $t('noStockHistory') }}</p>
-                </div>
-                <div v-else class="modal-body">
-                    <div v-for="entry in stockHistory" :key="entry.id"
-                        style="border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
-                        <p><strong>{{ $t('date') }}:</strong> {{ new Date(entry.timestamp).toLocaleString() }}</p>
-                        <p><strong>{{ $t('reason') }}:</strong> {{ entry.reason }}</p>
-                        <p><strong>{{ $t('stock') }}:</strong> {{ entry.oldStock }} -> {{ entry.newStock }}</p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button @click="closeModal()" class="remove-btn">{{ $t('close') }}</button>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="currentModal && currentModal.name === 'productManagement'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('productManagement') }}</h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="add-product-section"
-                        style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h3>{{ $t('addProduct') }}</h3>
-                        <input type="text" v-model="newProductName" :placeholder="$t('productName')"
-                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                        <input type="number" v-model.number="newProductPrice" :placeholder="$t('price')"
-                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                        <input type="number" v-model.number="newProductStock" :placeholder="$t('stock')"
-                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                        <button @click="addNewProduct">{{ $t('addProduct') }}</button>
-                    </div>
                     <div class="products-list">
-                        <div v-for="product in productsWithSoldQuantity" :key="product.id" class="product-card"
+                        <div v-for="product in filteredProducts" :key="product.id" class="product-card"
                             :class="{ deleted: product.deleted }">
                             <div class="product-header">
                                 <h3>{{ product.name }}</h3>
-                                <div class="product-actions dropdown">
-                                    <button class="icon-button dropbtn">
-                                        <i class="material-icons">more_vert</i>
-                                    </button>
-                                    <div class="dropdown-content">
-                                        <a href="#"
-                                            @click.prevent="openModal('editStock', { product: product, newStock: product.stock, stockChangeReason: '' })"><i
-                                                class="material-icons">edit</i> {{ $t('editStock') }}</a>
-                                        <a href="#" @click.prevent="viewStockHistory(product)"><i
-                                                class="material-icons">history</i> {{ $t('viewHistory') }}</a>
-                                        <a v-if="!product.deleted" href="#" @click.prevent="deleteProduct(product)"><i
-                                                class="material-icons">delete</i> {{ $t('deleteProduct') }}</a>
-                                        <a v-if="product.deleted" href="#" @click.prevent="restoreProduct(product)"><i
-                                                class="material-icons">restore</i> {{ $t('restore') }}</a>
-                                    </div>
-                                </div>
                             </div>
                             <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
                             <p>{{ $t('stock') }}: {{ product.stock }}</p>
                             <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
+                            <button @click="addToCart(product)" :disabled="product.stock === 0" class="add-to-cart-btn">
+                                <i class="material-icons">add_shopping_cart</i>
+                                <span>{{ $t('addToCart') }}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button @click="closeModal()" class="remove-btn">{{ $t('closeProductManagement') }}</button>
-                </div>
-            </div>
-        </div>
 
-        <div v-if="currentModal && currentModal.name === 'carouselManagement'" class="modal-overlay"
-            :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
-                            class="material-icons">arrow_back</i></button>
-                    <h2>{{ $t('manageCarousel') }}</h2>
-                    <button @click="closeModal()" class="close-button">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="add-image-section"
-                        style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h3>{{ $t('addImage') }}</h3>
-                        <input type="text" v-model="newImageUrl" :placeholder="$t('imageUrl')"
-                            style="padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; width: 70%;">
-                        <button @click="addCarouselImage">{{ $t('addImage') }}</button>
+                <div class="cart">
+                    <h2>{{ $t('cart') }}</h2>
+                    <button v-if="cart.length > 0" @click="clearCart" class="remove-btn clear-cart-btn">{{
+                        $t('clearCart') }}</button>
+                    <div v-if="isAddingToEmptyCart" class="loading-overlay cart-loading-overlay">
+                        <div class="spinner cart-spinner"></div>
                     </div>
-                    <div class="images-list">
-                        <div v-for="(image, index) in carouselImages" :key="index" class="image-card"
-                            style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px;">
-                            <img :src="image.url"
-                                style="width: 100px; height: 50px; object-fit: cover; border-radius: 4px;">
-                            <button @click="removeCarouselImage(image)" class="remove-btn"><i
-                                    class="material-icons">delete</i></button>
+                    <div v-if="cart.length === 0" class="empty-cart cart-content">
+                        {{ $t('cartEmpty') }}
+                    </div>
+                    <div v-else class="cart-content">
+                        <div class="cart-items-container">
+                            <div v-for="item in cart" :key="item.id" class="cart-item">
+                                <div>
+                                    <strong>{{ item.name }}</strong>
+                                    <br>
+                                    <br>
+                                    <small>{{ formattedPrice(item.price) }}</small>
+                                </div>
+                                <div class="quantity-controls">
+                                    <button @click="updateQuantity(item, -1)">-</button>
+                                    <span>{{ item.quantity }}</span>
+                                    <button @click="updateQuantity(item, 1)">+</button>
+                                </div>
+                                <div>
+                                    <button @click="removeFromCart(item.id)" class="icon-button remove-btn">
+                                        <i class="material-icons">delete</i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cart-summary">
+                            <div class="cart-summary-row">
+                                <span>{{ $t('totalQuantity') }}:</span>
+                                <span>{{ totalQuantity }}</span>
+                            </div>
+                            <div class="cart-summary-row">
+                                <span>{{ $t('total') }}</span>
+                                <span>{{ formattedPrice(cartTotal) }}</span>
+                            </div>
+                            <button @click="startCheckout" :disabled="cart.length === 0" class="checkout-btn">{{
+                                $t('checkout') }}</button>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button @click="closeModal()" class="remove-btn">{{ $t('close') }}</button>
+            </div>
+
+            <div v-if="currentModal && currentModal.name === 'checkout'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('checkout') }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <h3>{{ $t('checkoutSummary') }}</h3>
+                        <ul>
+                            <li v-for="item in cart" :key="item.id">
+                                {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
+                            </li>
+                        </ul>
+                        <p><strong>{{ $t('total') }}: {{ formattedPrice(cartTotal) }}</strong></p>
+
+                        <h3>{{ $t('choosePaymentMethod') }}</h3>
+                        <div class="payment-methods">
+                            <label class="payment-method-label">
+                                <input type="radio" v-model="paymentMethod" value="credit_card"> {{ $t('creditCard') }}
+                            </label>
+                            <label class="payment-method-label">
+                                <input type="radio" v-model="paymentMethod" value="line_pay"> {{ $t('linePay') }}
+                            </label>
+                            <label>
+                                <input type="radio" v-model="paymentMethod" value="cash"> {{ $t('cash') }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="processCheckout">{{ $t('confirmCheckout') }}</button>
+                        <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <div v-if="currentModal && currentModal.name === 'orderConfirmation'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('orderCreated') }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ $t('orderId') }}: <strong>{{ orderConfirmation.orderId }}</strong></p>
+                        <p>{{ $t('total') }}: <strong>{{ formattedPrice(orderConfirmation.total) }}</strong></p>
+                        <p>{{ $t('paymentMethod') }}: <strong>{{ $t(orderConfirmation.paymentMethod) }}</strong></p>
+                        <h3>{{ $t('orderDetails') }}:</h3>
+                        <ul>
+                            <li v-for="item in orderConfirmation.items" :key="item.id">
+                                {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price * item.quantity) }}
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="closeModal()">{{ $t('close') }}</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentModal && currentModal.name === 'orderHistory'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('orderHistory') }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div v-if="orderHistory.length === 0" class="modal-body">
+                        <p>{{ $t('noOrderHistory') }}</p>
+                    </div>
+                    <div v-else class="modal-body">
+                        <div v-for="order in orderHistory" :key="order.orderId" class="order-history-card">
+                            <h3>{{ $t('orderId') }}: {{ order.orderId }}</h3>
+                            <p>{{ $t('date') }}: {{ new Date(order.timestamp).toLocaleString() }}</p>
+                            <p>{{ $t('total') }}: {{ formattedPrice(order.total) }}</p>
+                            <p>{{ $t('paymentMethod') }}: {{ $t(order.paymentMethod) }}</p>
+                            <h4>{{ $t('orderDetails') }}:</h4>
+                            <ul>
+                                <li v-for="item in order.items" :key="item.id">
+                                    {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price *
+                                    item.quantity) }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="closeModal()" class="remove-btn">{{ $t('closeOrderHistory') }}</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentModal && currentModal.name === 'editStock'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('editStock') }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ $t('productName') }}: <strong>{{ currentModal.data.name }}</strong></p>
+                        <div class="form-group">
+                            <label for="new-stock">{{ $t('newStock') }}: </label>
+                            <input type="number" id="new-stock" v-model.number="currentModal.data.newStock" min="0"
+                                class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="stock-reason">{{ $t('reason') }}: </label>
+                            <input type="text" id="stock-reason" v-model="currentModal.data.stockChangeReason"
+                                :placeholder="$t('stockChangeReason')" class="form-input form-input-wide">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="confirmEditStock">{{ $t('confirm') }}</button>
+                        <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentModal && currentModal.name === 'stockHistory'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('stockHistory') }} <span v-if="currentModal.data.product">- {{
+                                currentModal.data.product.name }}</span></h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div v-if="stockHistory.length === 0" class="modal-body">
+                        <p>{{ $t('noStockHistory') }}</p>
+                    </div>
+                    <div v-else class="modal-body">
+                        <div v-for="entry in stockHistory" :key="entry.id" class="stock-history-card">
+                            <p><strong>{{ $t('date') }}:</strong> {{ new Date(entry.timestamp).toLocaleString() }}</p>
+                            <p><strong>{{ $t('reason') }}:</strong> {{ entry.reason }}</p>
+                            <p><strong>{{ $t('stock') }}:</strong> {{ entry.oldStock }} -> {{ entry.newStock }}</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="closeModal()" class="remove-btn">{{ $t('close') }}</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentModal && currentModal.name === 'productManagement'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('productManagement') }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="add-product-section">
+                            <h3>{{ $t('addProduct') }}</h3>
+                            <div class="form-group-inline">
+                                <input type="text" v-model="newProductName" :placeholder="$t('productName')"
+                                    class="form-input">
+                                <input type="number" v-model.number="newProductPrice" :placeholder="$t('price')"
+                                    class="form-input">
+                                <input type="number" v-model.number="newProductStock" :placeholder="$t('stock')"
+                                    class="form-input">
+                                <button @click="addNewProduct">{{ $t('addProduct') }}</button>
+                            </div>
+                        </div>
+                        <div class="products-list">
+                            <div v-for="product in productsWithSoldQuantity" :key="product.id" class="product-card"
+                                :class="{ deleted: product.deleted }">
+                                <div class="product-header">
+                                    <h3>{{ product.name }}</h3>
+                                    <div class="product-actions dropdown">
+                                        <button class="icon-button dropbtn">
+                                            <i class="material-icons">more_vert</i>
+                                        </button>
+                                        <div class="dropdown-content">
+                                            <a href="#"
+                                                @click.prevent="openModal('editStock', { product: product, newStock: product.stock, stockChangeReason: '' })"><i
+                                                    class="material-icons">edit</i> {{ $t('editStock') }}</a>
+                                            <a href="#" @click.prevent="viewStockHistory(product)"><i
+                                                    class="material-icons">history</i> {{ $t('viewHistory') }}</a>
+                                            <a v-if="!product.deleted" href="#"
+                                                @click.prevent="deleteProduct(product)"><i
+                                                    class="material-icons">delete</i> {{ $t('deleteProduct') }}</a>
+                                            <a v-if="product.deleted" href="#"
+                                                @click.prevent="restoreProduct(product)"><i
+                                                    class="material-icons">restore</i> {{ $t('restore') }}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
+                                <p>{{ $t('stock') }}: {{ product.stock }}</p>
+                                <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="closeModal()" class="remove-btn">{{ $t('closeProductManagement') }}</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentModal && currentModal.name === 'carouselManagement'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('manageCarousel') }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="add-image-section">
+                            <h3>{{ $t('addImage') }}</h3>
+                            <div class="form-group-inline">
+                                <input type="text" v-model="newImageUrl" :placeholder="$t('imageUrl')"
+                                    class="form-input form-input-wide">
+                                <button @click="addCarouselImage">{{ $t('addImage') }}</button>
+                            </div>
+                        </div>
+                        <div class="images-list">
+                            <div v-for="(image, index) in carouselImages" :key="index" class="image-card">
+                                <img :src="image.url" class="image-card-preview">
+                                <button @click="removeCarouselImage(image)" class="remove-btn"><i
+                                        class="material-icons">delete</i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="closeModal()" class="remove-btn">{{ $t('close') }}</button>
+                    </div>
+                </div>
+            </div>
     </div>
 
     <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
@@ -376,8 +381,433 @@
     <script src="i18n.js"></script>
 
     <script>
-        const { createApp } = Vue;
+        const { createApp, reactive } = Vue;
         const { createI18n } = VueI18n;
+
+        // Define messages as a reactive object globally
+        const reactiveMessages = reactive({
+            'zh-TW': {
+                shopName: '我的商店',
+                viewOrderHistory: '查看歷史訂單',
+                productList: '商品列表',
+                addProduct: '新增商品',
+                productName: '商品名稱',
+                price: '價格',
+                addToCart: '加入購物車',
+                stock: '庫存',
+                sold: '已售出',
+                cart: '購物車',
+                clearCart: '清空購物車',
+                cartEmpty: '購物車是空的',
+                total: '總計',
+                totalQuantity: '總數量',
+                checkout: '結帳',
+                checkoutSummary: '訂單摘要',
+                choosePaymentMethod: '選擇支付方式',
+                creditCard: '信用卡',
+                linePay: 'Line Pay',
+                cash: '現金',
+                confirmCheckout: '確認結帳',
+                cancel: '取消',
+                orderCreated: '訂單成立！',
+                orderId: '訂單編號',
+                paymentMethod: '支付方式',
+                orderDetails: '訂單詳情',
+                close: '關閉',
+                orderHistory: '歷史訂單',
+                noOrderHistory: '目前沒有歷史訂單。',
+                date: '日期',
+                productSoldOut: '該商品已售罄！',
+                maxQuantityReached: '已達到該商品的最大購買數量！',
+                enterValidProduct: '請輸入有效的商品名稱和價格。',
+                cartEmptyCheckout: '購物車是空的，無法結帳。',
+                selectPaymentMethod: '請選擇支付方式。',
+                checkoutSuccess: '結帳成功！',
+                checkoutFailed: '結帳失敗，請稍後再試。',
+                closeOrderHistory: '關閉歷史訂單',
+                language: '語言',
+                remove: '移除',
+                editQuantity: '修改數量',
+                currentQuantity: '目前數量',
+                newQuantity: '新數量',
+                confirm: '確認',
+                invalidQuantity: '數量無效！',
+                updateQuantityFailed: '更新數量失敗！',
+                currencySymbol: 'NT$',
+                currencyFormat: '{symbol}{value}',
+                exchangeRate: 1,
+                editStock: '修改庫存',
+                newStock: '新庫存',
+                invalidStock: '庫存無效！',
+                insufficientStock: '庫存不足，無法結帳。商品: {productName}, 庫存: {stock}, 需求: {quantity}',
+                viewHistory: '查看歷史異動',
+                stockHistory: '庫存歷史異動',
+                reason: '原因',
+                noStockHistory: '沒有庫存異動記錄。',
+                stockChangeReason: '庫存調整原因',
+                reasonRequired: '必須填寫原因。',
+                deleteProduct: '刪除商品',
+                deleteConfirmation: '您確定要刪除商品 {productName} 嗎？此操作無法復原。',
+                showAllProducts: '顯示所有商品',
+                restore: '還原',
+                productManagement: '商品管理',
+                closeProductManagement: '關閉商品管理',
+                manageCarousel: '管理輪播',
+                addImage: '新增圖片',
+                imageUrl: '圖片網址',
+                imageExists: '該圖片網址已存在。',
+                dbErrorReverted: '資料庫操作失敗，已還原變更。',
+                back: '返回'
+            },
+            'zh-CN': {
+                shopName: '我的商店',
+                viewOrderHistory: '查看历史订单',
+                productList: '商品列表',
+                addProduct: '新增商品',
+                productName: '商品名称',
+                price: '价格',
+                addToCart: '加入购物车',
+                stock: '库存',
+                sold: '已售出',
+                cart: '购物车',
+                clearCart: '清空购物车',
+                cartEmpty: '购物车是空的',
+                total: '总计',
+                totalQuantity: '总数量',
+                checkout: '结账',
+                checkoutSummary: '订单摘要',
+                choosePaymentMethod: '选择支付方式',
+                creditCard: '信用卡',
+                linePay: 'Line Pay',
+                cash: '现金',
+                confirmCheckout: '确认结账',
+                cancel: '取消',
+                orderCreated: '订单成立！',
+                orderId: '订单编号',
+                paymentMethod: '支付方式',
+                orderDetails: '订单详情',
+                close: '关闭',
+                orderHistory: '历史订单',
+                noOrderHistory: '目前没有历史订单。',
+                date: '日期',
+                productSoldOut: '该商品已售罄！',
+                maxQuantityReached: '已达到该商品的最大购买数量！',
+                enterValidProduct: '请输入有效的商品名称和价格。',
+                cartEmptyCheckout: '购物车是空的，无法结账。',
+                selectPaymentMethod: '请选择支付方式。',
+                checkoutSuccess: '结账成功！',
+                checkoutFailed: '结账失败，请稍后再试。',
+                closeOrderHistory: '关闭历史订单',
+                language: '语言',
+                remove: '移除',
+                editQuantity: '修改数量',
+                currentQuantity: '目前数量',
+                newQuantity: '新数量',
+                confirm: '确认',
+                invalidQuantity: '数量无效！',
+                updateQuantityFailed: '更新数量失败！',
+                currencySymbol: '¥',
+                currencyFormat: '{symbol}{value}',
+                exchangeRate: 0.23,
+                editStock: '修改库存',
+                newStock: '新库存',
+                invalidStock: '库存无效！',
+                insufficientStock: '库存不足，无法结账。商品: {productName}, 库存: {stock}, 需求: {quantity}',
+                viewHistory: '查看历史异动',
+                stockHistory: '库存历史异动',
+                reason: '原因',
+                noStockHistory: '没有库存异动记录。',
+                stockChangeReason: '库存调整原因',
+                reasonRequired: '必须填写原因。',
+                deleteProduct: '删除商品',
+                deleteConfirmation: '您确定要删除商品 {productName} 吗？此操作无法复原。',
+                showAllProducts: '显示所有商品',
+                restore: '还原',
+                productManagement: '商品管理',
+                closeProductManagement: '关闭商品管理',
+                manageCarousel: '管理轮播',
+                addImage: '新增图片',
+                imageUrl: '图片网址',
+                imageExists: '該图片网址已存在。',
+                dbErrorReverted: '数据库操作失败，已还原变更。',
+                back: '返回'
+            },
+            'ja': {
+                shopName: '私の店',
+                viewOrderHistory: '注文履歴を見る',
+                productList: '商品リスト',
+                addProduct: '商品を追加',
+                productName: '商品名',
+                price: '価格',
+                addToCart: 'カートに追加',
+                stock: '在庫',
+                sold: '販売済み',
+                cart: 'カート',
+                clearCart: 'カートを空にする',
+                cartEmpty: 'カートは空です',
+                total: '合計',
+                totalQuantity: '合計数量',
+                checkout: 'チェックアウト',
+                checkoutSummary: '注文概要',
+                choosePaymentMethod: '支払い方法を選択',
+                creditCard: 'クレジットカード',
+                linePay: 'Line Pay',
+                cash: '現金',
+                confirmCheckout: 'チェックアウトを確認',
+                cancel: 'キャンセル',
+                orderCreated: '注文が作成されました！',
+                orderId: '注文ID',
+                paymentMethod: '支払い方法',
+                orderDetails: '注文詳細',
+                close: '閉じる',
+                orderHistory: '注文履歴',
+                noOrderHistory: '注文履歴はありません。',
+                date: '日付',
+                productSoldOut: 'この商品は売り切れです！',
+                maxQuantityReached: 'この商品の最大購入数に達しました！',
+                enterValidProduct: '有効な商品名と価格を入力してください。',
+                cartEmptyCheckout: 'カートは空です。チェックアウトできません。',
+                selectPaymentMethod: '支払い方法を選択してください。',
+                checkoutSuccess: 'チェックアウト成功！',
+                checkoutFailed: 'チェックアウトに失敗しました。後でもう一度お試しください。',
+                closeOrderHistory: '注文履歴を閉じる',
+                language: '言語',
+                remove: '削除',
+                editQuantity: '数量を編集',
+                currentQuantity: '現在の数量',
+                newQuantity: '新しい数量',
+                confirm: '確認',
+                invalidQuantity: '無効な数量！',
+                updateQuantityFailed: '数量の更新に失敗しました！',
+                currencySymbol: '¥',
+                currencyFormat: '{symbol}{value}',
+                exchangeRate: 3.8,
+                editStock: '在庫を編集',
+                newStock: '新しい在庫',
+                invalidStock: '無効な在庫！',
+                insufficientStock: '在庫が不足しているため、チェックアウトできません。商品: {productName}, 在庫: {stock}, 要求: {quantity}',
+                viewHistory: '履歴を見る',
+                stockHistory: '在庫履歴',
+                reason: '理由',
+                noStockHistory: '在庫履歴はありません。',
+                stockChangeReason: '在庫調整理由',
+                reasonRequired: '理由が必要です。',
+                deleteProduct: '商品を削除',
+                deleteConfirmation: '商品 {productName} を削除してもよろしいですか？この操作は元に戻せません。',
+                showAllProducts: 'すべての商品を表示',
+                restore: '復元',
+                productManagement: '商品管理',
+                closeProductManagement: '商品管理を閉じる',
+                manageCarousel: '管理輪播',
+                addImage: '画像を追加',
+                imageUrl: '画像URL',
+                imageExists: 'この画像URLはすでに存在します。',
+                dbErrorReverted: 'データベース操作が失敗しました。変更は元に戻されました。',
+                back: '戻る'
+            },
+            'ko': {
+                shopName: '내 상점',
+                viewOrderHistory: '주문 내역 보기',
+                productList: '상품 목록',
+                addProduct: '상품 추가',
+                productName: '상품명',
+                price: '가격',
+                addToCart: '장바구니에 추가',
+                stock: '재고',
+                sold: '판매됨',
+                cart: '장바구니',
+                clearCart: '장바구니 비우기',
+                cartEmpty: '장바구니가 비어 있습니다',
+                total: '총계',
+                totalQuantity: '총 수량',
+                checkout: '결제',
+                checkoutSummary: '주문 요약',
+                choosePaymentMethod: '결제 방법 선택',
+                creditCard: '신용 카드',
+                linePay: '라인 페이',
+                cash: '현금',
+                confirmCheckout: '결제 확인',
+                cancel: '취소',
+                orderCreated: '주문이 생성되었습니다!',
+                orderId: '주문 ID',
+                paymentMethod: '결제 방법',
+                orderDetails: '주문 세부 정보',
+                close: '닫기',
+                orderHistory: '주문 내역',
+                noOrderHistory: '주문 내역이 없습니다.',
+                date: '날짜',
+                productSoldOut: '이 상품은 품절되었습니다!',
+                maxQuantityReached: '이 상품의 최대 구매 수량에 도달했습니다!',
+                enterValidProduct: '유효한 상품명과 가격을 입력하세요.',
+                cartEmptyCheckout: '장바구니가 비어 있습니다. 결제할 수 없습니다.',
+                selectPaymentMethod: '결제 방법을 선택하세요.',
+                checkoutSuccess: '결제 성공!',
+                checkoutFailed: '결제 실패. 나중에 다시 시도하십시오.',
+                closeOrderHistory: '주문 내역 닫기',
+                language: '언어',
+                remove: '제거',
+                editQuantity: '수량 수정',
+                currentQuantity: '현재 수량',
+                newQuantity: '새 수량',
+                confirm: '확인',
+                invalidQuantity: '유효하지 않은 수량!',
+                updateQuantityFailed: '수량 업데이트 실패!',
+                currencySymbol: '₩',
+                currencyFormat: '{symbol}{value}',
+                exchangeRate: 40,
+                editStock: '재고 수정',
+                newStock: '새 재고',
+                invalidStock: '잘못된 재고!',
+                insufficientStock: '재고가 부족하여 결제할 수 없습니다. 제품: {productName}, 재고: {stock}, 필요 수량: {quantity}',
+                viewHistory: '기록 보기',
+                stockHistory: '재고 기록',
+                reason: '사유',
+                noStockHistory: '재고 변경 기록이 없습니다.',
+                stockChangeReason: '재고 조정 사유',
+                reasonRequired: '사유는 필수입니다.',
+                deleteProduct: '상품 삭제',
+                deleteConfirmation: '상품 {productName}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+                showAllProducts: '모든 상품 보기',
+                restore: '복원',
+                productManagement: '상품 관리',
+                closeProductManagement: '상품 관리 닫기',
+                manageCarousel: '캐러셀 관리',
+                addImage: '이미지 추가',
+                imageUrl: '이미지 URL',
+                imageExists: '이미지 URL이 이미 존재합니다.',
+                dbErrorReverted: '데이터베이스 작업 실패, 변경 사항이 되돌려졌습니다.',
+                back: '뒤로'
+            },
+            'en-US': {
+                shopName: 'My Shop',
+                viewOrderHistory: 'View Order History',
+                productList: 'Product List',
+                addProduct: 'Add Product',
+                productName: 'Product Name',
+                price: 'Price',
+                addToCart: 'Add to Cart',
+                stock: 'Stock',
+                sold: 'Sold',
+                cart: 'Cart',
+                clearCart: 'Clear Cart',
+                cartEmpty: 'Cart is empty',
+                total: 'Total',
+                totalQuantity: 'Total Quantity',
+                checkout: 'Checkout',
+                checkoutSummary: 'Order Summary',
+                choosePaymentMethod: 'Choose Payment Method',
+                creditCard: 'Credit Card',
+                linePay: 'Line Pay',
+                cash: 'Cash',
+                confirmCheckout: 'Confirm Checkout',
+                cancel: 'Cancel',
+                orderCreated: 'Order Created!',
+                orderId: 'Order ID',
+                paymentMethod: 'Payment Method',
+                orderDetails: 'Order Details',
+                close: 'Close',
+                orderHistory: 'Order History',
+                noOrderHistory: 'No order history available.',
+                date: 'Date',
+                productSoldOut: 'This product is sold out!',
+                maxQuantityReached: 'Maximum quantity for this product reached!',
+                enterValidProduct: 'Please enter a valid product name and price.',
+                cartEmptyCheckout: 'Cart is empty, cannot checkout.',
+                selectPaymentMethod: 'Please select a payment method.',
+                checkoutSuccess: 'Checkout successful!',
+                checkoutFailed: 'Checkout failed, please try again later.',
+                closeOrderHistory: 'Close Order History',
+                language: 'Language',
+                remove: 'Remove',
+                editQuantity: 'Edit Quantity',
+                currentQuantity: 'Current Quantity',
+                newQuantity: 'New Quantity',
+                confirm: 'Confirm',
+                invalidQuantity: 'Invalid Quantity!',
+                updateQuantityFailed: 'Failed to update quantity!',
+                currencySymbol: '$',
+                currencyFormat: '{symbol}{value}',
+                exchangeRate: 0.032,
+                editStock: 'Edit Stock',
+                newStock: 'New Stock',
+                invalidStock: 'Invalid Stock!',
+                insufficientStock: 'Insufficient stock to checkout. Product: {productName}, Stock: {stock}, Requested: {quantity}',
+                viewHistory: 'View History',
+                stockHistory: 'Stock History',
+                reason: 'Reason',
+                noStockHistory: 'No stock history available.',
+                stockChangeReason: 'Stock adjustment reason',
+                reasonRequired: 'Reason is required.',
+                deleteProduct: 'Delete Product',
+                deleteConfirmation: 'Are you sure you want to delete {productName}? This action cannot be undone.',
+                showAllProducts: 'Show All Products',
+                restore: 'Restore',
+                productManagement: 'Product Management',
+                closeProductManagement: 'Close Product Management',
+                manageCarousel: 'Manage Carousel',
+                addImage: 'Add Image',
+                imageUrl: 'Image URL',
+                imageExists: 'This image URL already exists.',
+                dbErrorReverted: 'Database operation failed, changes reverted.',
+                back: 'Back'
+            },
+            'en-GB': {
+                shopName: 'My Shop',
+                viewOrderHistory: 'View Order History',
+                productList: 'Product List',
+                addProduct: 'Add Product',
+                productName: 'Product Name',
+                price: 'Price',
+                addToCart: 'Add to Basket',
+                stock: 'Stock',
+                sold: 'Sold',
+                cart: 'Basket',
+                clearCart: 'Clear Basket',
+                cartEmpty: 'Basket is empty',
+                total: 'Total',
+                totalQuantity: 'Total Quantity',
+                checkout: 'Checkout',
+                checkoutSummary: 'Order Summary',
+                choosePaymentMethod: 'Choose Payment Method',
+                creditCard: 'Credit Card',
+                linePay: 'Line Pay',
+                cash: 'Cash',
+                confirmCheckout: 'Confirm Checkout',
+                cancel: 'Cancel',
+                orderCreated: 'Order Created!',
+                orderId: 'Order ID',
+                paymentMethod: 'Payment Method',
+                orderDetails: 'Order Details',
+                close: 'Close',
+                orderHistory: 'Order History',
+                noOrderHistory: 'No order history available.',
+                date: 'Date',
+                productSoldOut: 'This product is sold out!',
+                maxQuantityReached: 'Maximum quantity for this product reached!',
+                enterValidProduct: 'Please enter a valid product name and price.',
+                cartEmptyCheckout: 'Basket is empty, cannot checkout.',
+                selectPaymentMethod: 'Please select a payment method.',
+                checkoutSuccess: 'Checkout successful!',
+                checkoutFailed: 'Checkout failed, please try again later.',
+                closeOrderHistory: 'Close Order History',
+                language: 'Language',
+                remove: 'Remove',
+                editQuantity: 'Edit Quantity',
+                currentQuantity: 'Current Quantity',
+                newQuantity: 'New Quantity',
+                confirm: 'Confirm',
+                invalidQuantity: 'Invalid Quantity!',
+                updateQuantityFailed: 'Failed to update quantity!',
+                currencySymbol: '£',
+                currencyFormat: '{symbol}{value}',
+                exchangeRate: 0.025,
+                editStock: 'Edit Stock',
+                newStock: 'New Stock',
+                invalidStock: 'Invalid Stock!',
+                insufficientStock: 'Insufficient stock to checkout. Product: {productName}, Stock: {stock}, Requested: {quantity}',
+                manageCarousel: 'Manage Carousel'
+            }
+        });
 
         const i18n = createI18n({
             locale: 'zh-TW', // 預設語言
@@ -458,7 +888,8 @@
                 },
                 formattedPrice(price) {
                     const locale = this.locale;
-                    const localeConfig = messages[locale];
+                    // Access messages from i18n.global directly, as it's now reactive
+                    const localeConfig = i18n.global.messages[locale];
 
                     if (localeConfig && localeConfig.currencyFormat) {
                         const convertedPrice = price * (localeConfig.exchangeRate || 1);
@@ -882,6 +1313,43 @@
                         const carouselImagesTable = trans.table('carouselImages');
                         await carouselImagesTable.where('url').equals(url).delete();
                     });
+                },
+
+                async fetchExchangeRates() {
+                    const BASE_CURRENCY = 'TWD';
+                    const API_URL = `https://h-web-api-a2gvavdbg9dggxa3.canadacentral-01.azurewebsites.net/api/Toolbox/ProxyAPI?Url=https%3A%2F%2Fv6.exchangerate-api.com%2Fv6%2Fa80efb83a09fb6489e1e5034%2Flatest%2F${BASE_CURRENCY}`;
+
+                    try {
+                        const response = await fetch(API_URL);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+
+                        if (data.conversion_rates) {
+                            debugger;
+                            for (const localeKey in reactiveMessages) { // Use reactiveMessages
+                                if (reactiveMessages[localeKey].currencySymbol) { // Use reactiveMessages
+                                    const targetCurrency = reactiveMessages[localeKey].currencySymbol.replace(/[^a-zA-Z]/g, ''); // Extract currency code from symbol
+                                    if (data.conversion_rates[targetCurrency]) {
+                                        reactiveMessages[localeKey].exchangeRate = data.conversion_rates[targetCurrency]; // Update reactiveMessages
+                                    } else {
+                                        console.warn(`Exchange rate for ${targetCurrency} not found in API response.`);
+                                        reactiveMessages[localeKey].exchangeRate = 1; // Fallback to 1 if not found
+                                    }
+                                }
+                            }
+                            console.log("Exchange rates updated successfully!");
+                            // No need to re-initialize i18n or set locale messages explicitly here
+                            // Vue's reactivity system will handle updates to reactiveMessages
+                        } else {
+                            console.error("API response does not contain conversion_rates.", data);
+                        }
+                    } catch (error) {
+                        console.error("Failed to fetch exchange rates:", error);
+                        // Fallback to default exchange rates (1 for TWD, others as previously defined in i18n.js if not updated)
+                        // For simplicity, we'll just log the error. In a real app, you might want to set specific fallbacks.
+                    }
                 }
             },
             async created() {
@@ -890,10 +1358,18 @@
                 await this.loadCart();
                 await this.loadOrderHistory();
                 await this.loadCarouselImages();
+                await this.fetchExchangeRates(); // Fetch exchange rates on app creation
                 this.initSwiper();
                 this.isLoading = false;
             }
         });
+
+        // Initialize i18n with the reactive messages
+        // const i18n = createI18n({
+        //     locale: 'zh-TW', // 預設語言
+        //     fallbackLocale: 'en-US',
+        //     messages: reactiveMessages, // Use the reactive messages object
+        // });
 
         app.use(i18n);
         app.mount('#app');

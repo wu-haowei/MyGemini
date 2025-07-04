@@ -1,6 +1,6 @@
 html,
 body {
-    height: 100%;
+    /* height: 100%; */
 }
 
 body {
@@ -9,23 +9,13 @@ body {
     color: #333;
     background-color: #f4f4f4;
     margin: 0;
-    padding: 20px;
-    min-height: 100vh;
-    box-sizing: border-box;
-    overflow-y: auto;
+    padding-top: 100px; /* 80px for fixed header + 20px for the desired gap */
 }
 
 #app {
     max-width: 1200px;
     margin: 0 auto;
-    background: #fff;
-    padding: 25px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    min-height: calc(100vh - 40px);
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    /* This is now a transparent wrapper */
 }
 
 h1,
@@ -47,15 +37,16 @@ h2 {
     position: relative;
     display: flex;
     flex-direction: column;
+    max-height: 400px;
 }
 
 .products-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 20px;
-    max-height: 400px;
     overflow-y: auto;
     padding-right: 10px;
+    flex-grow: 1;
 }
 
 .product-card {
@@ -67,6 +58,7 @@ h2 {
     position: relative;
     display: flex;
     flex-direction: column;
+    flex: 1 1 220px;
 }
 
 .product-card.deleted {
@@ -363,10 +355,12 @@ button.remove-btn:hover {
 }
 
 .swiper-container {
+    position: relative;
     width: 100%;
     height: 300px;
     border-radius: 8px;
     overflow: hidden;
+    margin-bottom: 30px;
 }
 
 .swiper-slide {
@@ -382,7 +376,55 @@ button.remove-btn:hover {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
+}
+
+.swiper-button-next, .swiper-button-prev {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background-color: transparent;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.3s;
+    text-shadow: 0 0 8px rgba(0,0,0,0.6);
+}
+
+.swiper-button-next:hover, .swiper-button-prev:hover {
+    transform: translateY(-50%) scale(1.1);
+}
+
+.swiper-button-prev {
+    left: 10px;
+}
+
+.swiper-button-next {
+    right: 10px;
+}
+
+.swiper-pagination {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 6px; /* Add a small gap between bullets */
+}
+
+.swiper-pagination-bullet {
+    background: white;
+    opacity: 0.7;
+}
+
+.swiper-pagination-bullet-active {
+    background: #42b983;
+    opacity: 1;
 }
 
 .add-to-cart-btn:disabled {
@@ -396,4 +438,206 @@ button.remove-btn:hover {
 
 .restore-btn:hover {
     background-color: #ec971f;
+}
+
+.products-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.products-main-header-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .products-main-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .products-main-header-buttons {
+        justify-content: center;
+    }
+
+    .products-main-header-buttons button {
+        flex-grow: 1;
+    }
+}
+
+/* Refactored & Added Styles */
+
+.app-header-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 1100;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.app-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 80px;
+}
+
+.main-content {
+    padding: 25px;
+    /* Removed padding-top here as it's handled by body */
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.language-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.carousel-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.clear-cart-btn {
+    margin-bottom: 15px;
+}
+
+.cart-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 10;
+}
+
+.cart-spinner {
+    width: 40px;
+    height: 40px;
+}
+
+.cart-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.cart-items-container {
+    overflow-y: auto;
+    padding-right: 10px;
+    flex-grow: 1;
+}
+
+.cart-summary {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cart-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.checkout-btn {
+    margin-top: 10px;
+    align-self: flex-end;
+}
+
+.payment-methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.payment-method-label {
+    margin-right: 15px;
+}
+
+.order-history-card {
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-input {
+    padding: 8px;
+    margin-left: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.form-input-wide {
+    width: 70%;
+}
+
+.stock-history-card {
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.add-product-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.form-group-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.add-image-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.image-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.image-card-preview {
+    width: 100px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
 }
