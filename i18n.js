@@ -1,4 +1,3 @@
-
 const messages = {
     'zh-TW': {
         shopName: '我的商店',
@@ -70,6 +69,7 @@ const messages = {
         addImage: '新增圖片',
         imageUrl: '圖片網址',
         imageExists: '該圖片網址已存在。',
+        confirmRemoveProduct: '您確定要從購物車中移除 {productName} 嗎？',
         dbErrorReverted: '資料庫操作失敗，已還原變更。',
         back: '返回'
     },
@@ -142,6 +142,7 @@ const messages = {
         addImage: '新增图片',
         imageUrl: '图片网址',
         imageExists: '该图片网址已存在。',
+        confirmRemoveProduct: '您确定要从购物车中移除 {productName} 吗？',
         dbErrorReverted: '数据库操作失败，已还原变更。',
         back: '返回'
     },
@@ -215,6 +216,7 @@ const messages = {
         addImage: '画像を追加',
         imageUrl: '画像URL',
         imageExists: 'この画像URLはすでに存在します。',
+        confirmRemoveProduct: '本当にカートから {productName} を削除しますか？',
         dbErrorReverted: 'データベース操作が失敗しました。変更は元に戻されました。',
         back: '戻る'
     },
@@ -251,9 +253,9 @@ const messages = {
         date: '날짜',
         productSoldOut: '이 상품은 품절되었습니다!',
         maxQuantityReached: '이 상품의 최대 구매 수량에 도달했습니다!',
-        enterValidProduct: '유효한 상품명과 가격을 입력하세요.',
+        enterValidProduct: '유효한 상품명과 가격을 입력하세요。',
         cartEmptyCheckout: '장바구니가 비어 있습니다. 결제할 수 없습니다.',
-        selectPaymentMethod: '결제 방법을 선택하세요.',
+        selectPaymentMethod: '결제 방법을 선택하세요。',
         checkoutSuccess: '결제 성공!',
         checkoutFailed: '결제 실패. 나중에 다시 시도하십시오.',
         closeOrderHistory: '주문 내역 닫기',
@@ -279,7 +281,7 @@ const messages = {
         stockChangeReason: '재고 조정 사유',
         reasonRequired: '사유는 필수입니다.',
         deleteProduct: '상품 삭제',
-        deleteConfirmation: '상품 {productName}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+        deleteConfirmation: '상품 {productName}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다。',
         showAllProducts: '모든 상품 보기',
         restore: '복원',
         productManagement: '상품 관리',
@@ -287,8 +289,9 @@ const messages = {
         manageCarousel: '캐러셀 관리',
         addImage: '이미지 추가',
         imageUrl: '이미지 URL',
-        imageExists: '이미지 URL이 이미 존재합니다.',
-        dbErrorReverted: '데이터베이스 작업 실패, 변경 사항이 되돌려졌습니다.',
+        imageExists: '이미지 URL이 이미 존재합니다。',
+        confirmRemoveProduct: '장바구니에서 {productName}을(를) 삭제하시겠습니까?',
+        dbErrorReverted: '데이터베이스 작업 실패, 변경 사항이 되돌려졌습니다。',
         back: '뒤로'
     },
     'en-US': {
@@ -345,6 +348,7 @@ const messages = {
         newStock: 'New Stock',
         invalidStock: 'Invalid Stock!',
         insufficientStock: 'Insufficient stock to checkout. Product: {productName}, Stock: {stock}, Requested: {quantity}',
+        confirmRemoveProduct: 'Are you sure you want to remove {productName} from the cart?',
         manageCarousel: 'Manage Carousel'
     },
     'en-GB': {
@@ -401,6 +405,7 @@ const messages = {
         newStock: 'New Stock',
         invalidStock: 'Invalid Stock!',
         insufficientStock: 'Insufficient stock to checkout. Product: {productName}, Stock: {stock}, Requested: {quantity}',
+        confirmRemoveProduct: 'Are you sure you want to remove {productName} from the basket?',
         manageCarousel: 'Manage Carousel'
     }
 };

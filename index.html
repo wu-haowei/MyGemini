@@ -368,6 +368,26 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Custom Alert/Confirm Modal -->
+            <div v-if="notification.show" class="modal-overlay" style="z-index: 9998;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>{{ notification.title }}</h2>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ notification.message }}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button v-if="notification.type === 'confirm'" @click="handleConfirmation(true)">{{
+                            $t('confirm')
+                            }}</button>
+                        <button @click="handleConfirmation(false)"
+                            :class="{ 'remove-btn': notification.type === 'confirm' }">{{
+                            notification.type === 'confirm' ? $t('cancel') : $t('close') }}</button>
+                    </div>
+                </div>
+            </div>
     </div>
 
     <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
@@ -409,7 +429,14 @@
                     stockHistory: [],
                     carouselImages: [],
                     newImageUrl: '',
-                    modalStack: [] // Centralized modal management
+                    modalStack: [], // Centralized modal management
+                    notification: {
+                        show: false,
+                        type: 'alert', // 'alert' or 'confirm'
+                        title: '',
+                        message: '',
+                        onConfirm: null
+                    }
                 };
             },
             computed: {
@@ -442,6 +469,22 @@
                     return this.modalStack.length > 0;
                 }
             },
+            watch: {
+                showModalOverlay(newValue) {
+                    if (newValue) {
+                        document.body.classList.add('modal-open');
+                    } else {
+                        document.body.classList.remove('modal-open');
+                    }
+                },
+                'notification.show': function (newValue) {
+                    if (newValue) {
+                        document.body.classList.add('modal-open');
+                    } else if (!this.showModalOverlay) { // Only remove if no other modals are open
+                        document.body.classList.remove('modal-open');
+                    }
+                }
+            },
             methods: {
                 openModal(name, data = {}) {
                     this.modalStack.push({ name, data });
@@ -454,6 +497,28 @@
                 },
                 getModalZIndex(index) {
                     return 1000 + index;
+                },
+                showAlert(message, title = 'Info') {
+                    this.notification.type = 'alert';
+                    this.notification.title = title;
+                    this.notification.message = message;
+                    this.notification.show = true;
+                },
+                showConfirm(message, title = 'Confirm') {
+                    return new Promise((resolve) => {
+                        this.notification.type = 'confirm';
+                        this.notification.title = title;
+                        this.notification.message = message;
+                        this.notification.show = true;
+                        this.notification.onConfirm = resolve;
+                    });
+                },
+                handleConfirmation(isConfirmed) {
+                    if (this.notification.onConfirm) {
+                        this.notification.onConfirm(isConfirmed);
+                    }
+                    this.notification.show = false;
+                    this.notification.onConfirm = null; // Reset for next time
                 },
                 generateUUID() {
                     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -504,7 +569,7 @@
                 },
                 async addToCart(product) {
                     if (product.stock === 0) {
-                        alert(this.$t('productSoldOut'));
+                        this.showAlert(this.$t('productSoldOut'));
                         return;
                     }
 
@@ -520,7 +585,7 @@
 
                             if (existingItem) {
                                 if (existingItem.quantity >= product.stock) {
-                                    alert(this.$t('maxQuantityReached'));
+                                    this.showAlert(this.$t('maxQuantityReached'));
                                     return;
                                 }
                                 await cartTable.update(existingItem.id, {
@@ -563,8 +628,15 @@
                         const newQuantity = item.quantity + change;
 
                         if (change > 0 && productInStock && newQuantity > productInStock.stock) {
-                            alert(this.$t('maxQuantityReached'));
+                            this.showAlert(this.$t('maxQuantityReached'));
                             return;
+                        }
+
+                        if (newQuantity === 0) {
+                            const confirmed = await this.showConfirm(this.$t('confirmRemoveProduct', { productName: item.name }));
+                            if (!confirmed) {
+                                return; // User canceled the removal
+                            }
                         }
 
                         await this.db.transaction('rw', this.db.cart, async (trans) => {
@@ -934,7 +1006,7 @@
                 await this.loadCart();
                 await this.loadOrderHistory();
                 await this.loadCarouselImages();
-                await this.fetchExchangeRates(); // Fetch exchange rates on app creation
+                // await this.fetchExchangeRates(); // Fetch exchange rates on app creation
                 this.initSwiper();
                 this.isLoading = false;
             }
@@ -951,6 +1023,35 @@
         app.mount('#app');
     </script>
 
+    <footer>
+        <div class="footer-content">
+            <h3>公司資訊</h3>
+            <p>公司名稱：Gemini CLI 商店</p>
+            <p>地址：模擬地址，模擬城市，模擬國家</p>
+            <p>電話：(02) 1234-5678</p>
+            <p>電子郵件：info@geminicli.com</p>
+        </div>
+        <div class="footer-content">
+            <h3>更新資訊</h3>
+            <p>最後更新日期：2025年7月4日</p>
+            <p>版本：1.0.0</p>
+        </div>
+        <div class="footer-content">
+            <details>
+                <summary>無障礙標籤與聲明</summary>
+                <p>本網站致力於提供無障礙的瀏覽體驗。我們遵循無障礙網頁內容指南 (WCAG) 2.1 AA 級標準。</p>
+                <p>如果您在使用本網站時遇到任何無障礙問題，請聯繫我們。</p>
+                <ul>
+                    <li>鍵盤導航支援</li>
+                    <li>高對比模式支援</li>
+                    <li>螢幕閱讀器優化</li>
+                </ul>
+            </details>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Gemini CLI 商店. All rights reserved.</p>
+        </div>
+    </footer>
 </body>
 
 </html>
