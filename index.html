@@ -224,30 +224,44 @@
                 </div>
             </div>
 
-            <div v-if="currentModal && currentModal.name === 'editStock'" class="modal-overlay"
+
+
+
+
+            <div v-if="currentModal && currentModal.name === 'editProductDetails'" class="modal-overlay"
                 :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
                 <div class="modal-content">
                     <div class="modal-header">
                         <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
                                 class="material-icons">arrow_back</i></button>
-                        <h2>{{ $t('editStock') }}</h2>
+                        <h2>{{ $t('editProduct') }}</h2>
                         <button @click="closeModal()" class="close-button">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <p>{{ $t('productName') }}: <strong>{{ currentModal.data.name }}</strong></p>
+                        <p>{{ $t('productName') }}: <strong>{{ currentModal.data.product.name }}</strong></p>
                         <div class="form-group">
-                            <label for="new-stock">{{ $t('newStock') }}: </label>
-                            <input type="number" id="new-stock" v-model.number="currentModal.data.newStock" min="0"
-                                class="form-input">
+                            <label for="edit-product-name">{{ $t('productName') }}: </label>
+                            <input type="text" id="edit-product-name" v-model="currentModal.data.newProductName"
+                                class="form-input form-input-wide">
                         </div>
                         <div class="form-group">
-                            <label for="stock-reason">{{ $t('reason') }}: </label>
-                            <input type="text" id="stock-reason" v-model="currentModal.data.stockChangeReason"
+                            <label for="edit-product-price">{{ $t('price') }}: </label>
+                            <input type="number" id="edit-product-price"
+                                v-model.number="currentModal.data.newProductPrice" min="0" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-stock">{{ $t('stock') }}: </label>
+                            <input type="number" id="edit-product-stock"
+                                v-model.number="currentModal.data.newProductStock" min="0" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="stock-change-reason">{{ $t('reason') }}: </label>
+                            <input type="text" id="stock-change-reason" v-model="currentModal.data.stockChangeReason"
                                 :placeholder="$t('stockChangeReason')" class="form-input form-input-wide">
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button @click="confirmEditStock">{{ $t('confirm') }}</button>
+                        <button @click="confirmEditProductDetails">{{ $t('saveChanges') }}</button>
                         <button @click="closeModal()" class="remove-btn">{{ $t('cancel') }}</button>
                     </div>
                 </div>
@@ -299,9 +313,10 @@
                                 <input type="number" v-model.number="newProductStock" :placeholder="$t('stock')"
                                     class="form-input">
                                 <button @click="addNewProduct">{{ $t('addProduct') }}</button>
+                                <button @click="generateRandomProduct">隨機生成產品</button>
                             </div>
                         </div>
-                        <div class="products-list">
+                        <div class="products-list modal-products-list">
                             <div v-for="product in productsWithSoldQuantity" :key="product.id" class="product-card"
                                 :class="{ deleted: product.deleted }">
                                 <div class="product-header">
@@ -312,8 +327,8 @@
                                         </button>
                                         <div class="dropdown-content">
                                             <a href="#"
-                                                @click.prevent="openModal('editStock', { product: product, newStock: product.stock, stockChangeReason: '' })"><i
-                                                    class="material-icons">edit</i> {{ $t('editStock') }}</a>
+                                                @click.prevent="openModal('editProductDetails', { product: product, newProductName: product.name, newProductPrice: product.price, newProductStock: product.stock, stockChangeReason: '', stockChanged: false })"><i
+                                                    class="material-icons">edit</i> {{ $t('editProduct') }}</a>
                                             <a href="#" @click.prevent="viewStockHistory(product)"><i
                                                     class="material-icons">history</i> {{ $t('viewHistory') }}</a>
                                             <a v-if="!product.deleted" href="#"
@@ -370,7 +385,7 @@
             </div>
 
             <!-- Custom Alert/Confirm Modal -->
-            <div v-if="notification.show" class="modal-overlay" style="z-index: 9998;">
+            <div v-if="notification.show" class="modal-overlay" style="z-index: 9999;">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h2>{{ notification.title }}</h2>
@@ -496,7 +511,7 @@
                     this.modalStack = [];
                 },
                 getModalZIndex(index) {
-                    return 1000 + index;
+                    return 1200 + index;
                 },
                 showAlert(message, title = 'Info') {
                     this.notification.type = 'alert';
@@ -542,7 +557,7 @@
                 },
                 async setupDatabase() {
                     this.db = new Dexie('ShoppingCartDB');
-                    this.db.version(81).stores({
+                    this.db.version(82).stores({
                         products: 'id, name, price, stock, deleted',
                         cart: '++id, &productId, name, price, quantity',
                         orders: '++id, orderId, total, paymentMethod, timestamp',
@@ -669,6 +684,22 @@
                         alert(this.$t('enterValidProduct'));
                     }
                 },
+                async generateRandomProduct() {
+                    const randomNames = ['T恤', '牛仔褲', '運動鞋', '帽子', '背包', '手錶', '太陽眼鏡', '耳機', '鍵盤', '滑鼠'];
+                    const randomName = randomNames[Math.floor(Math.random() * randomNames.length)] + '-' + Math.floor(Math.random() * 1000);
+                    const randomPrice = parseFloat((Math.random() * 100 + 10).toFixed(2));
+                    const randomStock = Math.floor(Math.random() * 100) + 1;
+
+                    const newProduct = {
+                        id: this.generateUUID(),
+                        name: randomName,
+                        price: randomPrice,
+                        stock: randomStock,
+                        deleted: false
+                    };
+                    await this.db.products.add(newProduct);
+                    await this.loadProducts();
+                },
                 async deleteProduct(product) {
                     if (confirm(this.$t('deleteConfirmation', { productName: product.name }))) {
                         try {
@@ -794,41 +825,52 @@
                 startEditStock(product) {
                     this.openModal('editStock', { product: { ...product }, newStock: product.stock, stockChangeReason: '' });
                 },
-                async confirmEditStock() {
+                async confirmEditProductDetails() {
                     const product = this.currentModal.data.product;
-                    const newStock = this.currentModal.data.newStock;
+                    const newProductName = this.currentModal.data.newProductName;
+                    const newProductPrice = parseFloat(this.currentModal.data.newProductPrice);
+                    const newProductStock = parseInt(this.currentModal.data.newProductStock);
                     const stockChangeReason = this.currentModal.data.stockChangeReason;
 
-                    if (newStock < 0) {
-                        alert(this.$t('invalidStock'));
+                    if (!newProductName || isNaN(newProductPrice) || newProductPrice <= 0 || isNaN(newProductStock) || newProductStock < 0) {
+                        this.showAlert(this.$t('enterValidProduct'));
                         return;
                     }
 
-                    if (!stockChangeReason) {
-                        alert(this.$t('reasonRequired'));
+                    const oldStock = product.stock;
+                    const stockChanged = newProductStock !== oldStock;
+
+                    if (stockChanged && !stockChangeReason) {
+                        this.showAlert(this.$t('reasonRequired'));
                         return;
                     }
 
                     try {
-                        await this.db.transaction('rw', this.db.products, this.db.stockHistory, async (trans) => {
-                            // Fetch the latest stock from the database within the transaction
-                            const productInDb = await trans.products.get(product.id);
-                            const oldStock = productInDb ? productInDb.stock : product.stock; // Fallback to current modal data if not found
+                        await this.db.transaction('rw', this.db.products, this.db.cart, this.db.stockHistory, async (trans) => {
+                            await trans.products.update(product.id, { name: newProductName, price: newProductPrice, stock: newProductStock });
 
-                            await trans.products.update(product.id, { stock: newStock });
-                            await trans.stockHistory.add({
-                                productId: product.id,
-                                timestamp: new Date().toISOString(),
-                                oldStock,
-                                newStock,
-                                reason: stockChangeReason
-                            });
+                            // Update cart items with new product name and price
+                            const cartItemsToUpdate = await trans.cart.where('productId').equals(product.id).toArray();
+                            for (const cartItem of cartItemsToUpdate) {
+                                await trans.cart.update(cartItem.id, { name: newProductName, price: newProductPrice });
+                            }
+
+                            if (stockChanged) {
+                                await trans.stockHistory.add({
+                                    productId: product.id,
+                                    timestamp: new Date().toISOString(),
+                                    oldStock,
+                                    newStock: newProductStock,
+                                    reason: stockChangeReason
+                                });
+                            }
                         });
                         await this.loadProducts();
+                        await this.loadCart(); // Reload cart to reflect changes
                         this.closeModal();
                     } catch (error) {
-                        console.error("Error confirming stock edit:", error);
-                        alert("Failed to update stock.");
+                        console.error("Error confirming product details edit:", error); // Log the full error object
+                        this.showAlert(`${this.$t('checkoutFailed')} ${error.message || error}`); // Display more specific error
                     }
                 },
                 cancelEditStock() {
@@ -843,6 +885,7 @@
                         this.openModal('stockHistory', { product: product });
                     } catch (error) {
                         console.error("Could not load stock history from IndexedDB:", error);
+                        this.showAlert("Failed to load stock history.");
                     }
                 },
                 async logStockChange(productId, oldStock, newStock, reason) {
@@ -866,9 +909,9 @@
                         if (this.carouselImages.length === 0) {
                             // Add default images if none exist
                             this.carouselImages = [
-                                { url: 'https://via.placeholder.com/1200x300/42b983/FFFFFF?Text=Slide+1' },
-                                { url: 'https://via.placeholder.com/1200x300/36a476/FFFFFF?Text=Slide+2' },
-                                { url: 'https://via.placeholder.com/1200x300/2c3e50/FFFFFF?Text=Slide+3' }
+                                { url: 'https://fastly.picsum.photos/id/900/900/300.jpg?hmac=SzqDvBqN8NCFqTFkjnS6qLVSEgisX468kUBObFN1vWk' },
+                                { url: 'https://fastly.picsum.photos/id/947/900/300.jpg?hmac=gdtf6tvBC1_mHcHprIO7XQuTKrQWhGCiqm5yC1TPKYU' },
+                                { url: 'https://fastly.picsum.photos/id/871/900/300.jpg?hmac=K2ZUhHHolUQ80f-6rEVdUuq18LrwsVybIu4o-VZTOys' }
                             ];
                         }
                     } catch (error) {

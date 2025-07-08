@@ -3,13 +3,18 @@ body {
     /* height: 100%; */
 }
 
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.6;
     color: #333;
     background-color: #f4f4f4;
     margin: 0;
-    padding-top: 100px; /* 80px for fixed header + 20px for the desired gap */
+    padding-top: 100px;
+    /* 80px for fixed header + 20px for the desired gap */
 }
 
 #app {
@@ -30,14 +35,22 @@ h2 {
     align-items: stretch;
 }
 
-.products,
+.products {
+    flex: 1;
+    min-width: 300px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 1000px;
+}
+
 .cart {
     flex: 1;
     min-width: 300px;
     position: relative;
     display: flex;
     flex-direction: column;
-    max-height: 400px;
+    max-height: 500px;
 }
 
 .products-list {
@@ -45,8 +58,14 @@ h2 {
     flex-wrap: wrap;
     gap: 20px;
     overflow-y: auto;
+    /* Re-added for main product list */
     padding-right: 10px;
     flex-grow: 1;
+}
+
+.modal-products-list {
+    overflow-y: visible;
+    /* Ensure no scrollbar inside modal product list */
 }
 
 .product-card {
@@ -170,7 +189,7 @@ button.remove-btn:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 1200;
 }
 
 .edit-stock-modal-overlay {
@@ -372,10 +391,11 @@ button.remove-btn:hover {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
-.swiper-button-next, .swiper-button-prev {
+.swiper-button-next,
+.swiper-button-prev {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -388,10 +408,11 @@ button.remove-btn:hover {
     align-items: center;
     cursor: pointer;
     transition: transform 0.3s;
-    text-shadow: 0 0 8px rgba(0,0,0,0.6);
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
 }
 
-.swiper-button-next:hover, .swiper-button-prev:hover {
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
     transform: translateY(-50%) scale(1.1);
 }
 
@@ -410,7 +431,8 @@ button.remove-btn:hover {
     right: 0;
     display: flex;
     justify-content: center;
-    gap: 6px; /* Add a small gap between bullets */
+    gap: 6px;
+    /* Add a small gap between bullets */
 }
 
 .swiper-pagination-bullet {
@@ -462,7 +484,21 @@ button.remove-btn:hover {
     }
 
     .products-main-header-buttons button {
-        flex-grow: 1;
+        /* flex-grow: 1; */
+    }
+
+    .product-card {
+        width: 100%;
+        max-width: none;
+        padding: 10px;
+        flex: 1 1 auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .dropdown-content {
+        width: 100%;
+        min-width: unset;
     }
 }
 
@@ -474,7 +510,7 @@ button.remove-btn:hover {
     left: 0;
     width: 100%;
     background-color: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     z-index: 1100;
     padding: 0 20px;
     box-sizing: border-box;
@@ -720,5 +756,6 @@ body.modal-open {
 
 /* Custom Alert/Confirm Modal Footer */
 .modal-footer button {
-    min-width: 80px; /* Ensure buttons have a decent size */
+    min-width: 80px;
+    /* Ensure buttons have a decent size */
 }
