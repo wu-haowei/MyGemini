@@ -1006,7 +1006,7 @@
                 await this.loadCart();
                 await this.loadOrderHistory();
                 await this.loadCarouselImages();
-                // await this.fetchExchangeRates(); // Fetch exchange rates on app creation
+                await this.fetchExchangeRates(); // Fetch exchange rates on app creation
                 this.initSwiper();
                 this.isLoading = false;
             }
