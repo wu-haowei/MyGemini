@@ -13,7 +13,6 @@
 <body>
 
     <div id="app">
-
         <header class="app-header-fixed">
             <div class="app-header-content">
                 <h1>{{ $t('shopName') }}</h1>
@@ -39,7 +38,7 @@
             <!-- Carousel -->
             <div class="swiper-container main-carousel">
                 <div class="swiper-wrapper">
-                    <div class="swiper-slide" v-for="(image, index) in carouselImages" :key="index">
+                    <div class="swiper-slide" v-for="(image, index) in getCarouselImages" :key="index">
                         <img :src="image.url" class="carousel-image">
                     </div>
                 </div>
@@ -510,6 +509,9 @@
                 };
             },
             computed: {
+                getCarouselImages() {
+                    return this.carouselImages;
+                },
                 cartTotal() {
                     return this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
                 },
@@ -612,17 +614,25 @@
                 },
                 async setupDatabase() {
                     this.db = new Dexie('ShoppingCartDB');
-                    this.db.version(85).stores({
+                    this.db.version(1).stores({
                         products: 'id, name, price, stock, brand, rating, images, deleted',
                         cart: '++id, &productId, name, price, quantity',
                         orders: '++id, orderId, total, paymentMethod, timestamp',
                         stockHistory: '++id, productId, timestamp, oldStock, newStock, reason',
                         carouselImages: '++id, &url'
+                    }).upgrade(tx => {
+                        // This upgrade function will run if the user has a database version < 85.
+                        // It will migrate the 'image' property to an 'images' array.
+                        return tx.table('products').toCollection().modify(product => {
+                            if (product.image && !Array.isArray(product.images)) {
+                                product.images = [product.image];
+                                delete product.image;
+                            }
+                        });
                     });
 
-                    this.db.on('populate', async () => {
-                        await this.seedInitialData();
-                    });
+                    await this.db.on('populate', (tx) => this.seedInitialData(tx));
+
                 },
                 async loadProducts() {
                     if (!this.db) return;
@@ -770,38 +780,33 @@
                     await this.db.products.add(newProduct);
                     await this.loadProducts();
                 },
-
                 async seedInitialData() {
-                    await this.db.transaction('rw', this.db.products, this.db.carouselImages, async () => {
-                        // Seed Products
-                        const productsToSeed = [
-                            {
-                                id: this.generateUUID(), name: '高品質純棉T恤', price: 499, stock: 50, brand: 'Demo', rating: 4.5,
-                                images: [],
-                                deleted: false
-                            },
-                            {
-                                id: this.generateUUID(), name: '經典款藍色牛仔褲', price: 1299, stock: 30, brand: 'Demo', rating: 4.8,
-                                images: [],
-                                deleted: false
-                            },
-                            {
-                                id: this.generateUUID(), name: '無線藍牙降噪耳機', price: 2499, stock: 20, brand: 'Demo', rating: 4.9,
-                                images: [],
-                                deleted: false
-                            }
-                        ];
-                        await this.db.products.bulkAdd(productsToSeed);
+                    // This method is called within the populate transaction, so we don't need a new one.
+                    // We can directly use this.db.products and this.db.carouselImages
+                    const productsToSeed = [
+                        {
+                            id: this.generateUUID(), name: '高品質純棉T恤', price: 499, stock: 50, brand: 'Demo', rating: 4.5,
+                            images: [],
+                            deleted: false
+                        },
+                        {
+                            id: this.generateUUID(), name: '經典款藍色牛仔褲', price: 1299, stock: 30, brand: 'Demo', rating: 4.8,
+                            images: [],
+                            deleted: false
+                        },
+                        {
+                            id: this.generateUUID(), name: '無線藍牙降噪耳機', price: 2499, stock: 20, brand: 'Demo', rating: 4.9,
+                            images: [],
+                            deleted: false
+                        }
+                    ];
+                    await this.db.products.bulkAdd(productsToSeed);
 
-                        // Seed Carousel Images
                         const carouselImagesToSeed = [
                             { url: 'https://cdn.pixabay.com/photo/2025/04/24/01/29/trees-9554109_1280.jpg' },
-                            { url: 'https://cdn.pixabay.com/photo/2021/08/31/10/34/boat-shed-6588414_960_720.jpg' }
-                        ];
-                        await this.db.carouselImages.bulkAdd(carouselImagesToSeed);
-                    });
+                            { url: 'https://cdn.pixabay.com/photo/2021/08/31/10/34/boat-shed-6588414_960_720.jpg' }]
+                    await this.db.carouselImages.bulkAdd(carouselImagesToSeed);
                 },
-
                 async deleteProduct(product) {
                     if (confirm(this.$t('deleteConfirmation', { productName: product.name }))) {
                         try {
@@ -1160,14 +1165,24 @@
                 },
             },
             async created() {
-                await this.setupDatabase();
-                await this.loadProducts();
-                await this.loadCart();
-                await this.loadOrderHistory();
-                await this.loadCarouselImages();
-                await this.fetchExchangeRates(); // Fetch exchange rates on app creation
-                this.initSwiper();
-                this.isLoading = false;
+                this.setupDatabase();
+                try {
+                    await this.db.open();
+                    // Now that the DB is open (and populated if it was the first time), load all data.
+                    await Promise.all([
+                        this.loadProducts(),
+                        this.loadCart(),
+                        this.loadOrderHistory(),
+                        this.loadCarouselImages(),
+                        this.fetchExchangeRates()
+                    ]);
+                    this.initSwiper();
+                } catch (error) {
+                    console.error("Failed to initialize the application:", error);
+                    this.showAlert('Failed to load database. Please try refreshing.', 'Initialization Error');
+                } finally {
+                    this.isLoading = false;
+                }
             }
         });
 
