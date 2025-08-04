@@ -72,7 +72,10 @@ const messages = {
         imageExists: '該圖片網址已存在。',
         confirmRemoveProduct: '您確定要從購物車中移除 {productName} 嗎？',
         dbErrorReverted: '資料庫操作失敗，已還原變更。',
-        back: '返回'
+        back: '返回',
+        brand: '品牌',
+        rating: '評價',
+        noImageAvailable: '沒有圖片'
     },
     'zh-CN': {
         shopName: '我的商店',
@@ -146,7 +149,10 @@ const messages = {
         imageExists: '该图片网址已存在。',
         confirmRemoveProduct: '您确定要从购物车中移除 {productName} 吗？',
         dbErrorReverted: '数据库操作失败，已还原变更。',
-        back: '返回'
+        back: '返回',
+        brand: '品牌',
+        rating: '评价',
+        noImageAvailable: '没有图片'
     },
     'ja': {
         shopName: '私の店',
@@ -221,7 +227,10 @@ const messages = {
         imageExists: 'この画像URLはすでに存在します。',
         confirmRemoveProduct: '本当にカートから {productName} を削除しますか？',
         dbErrorReverted: 'データベース操作が失敗しました。変更は元に戻されました。',
-        back: '戻る'
+        back: '戻る',
+        brand: 'ブランド',
+        rating: '評価',
+        noImageAvailable: '画像がありません'
     },
     'ko': {
         shopName: '내 상점',
@@ -296,7 +305,10 @@ const messages = {
         imageExists: '이미지 URL이 이미 존재합니다。',
         confirmRemoveProduct: '장바구니에서 {productName}을(를) 삭제하시겠습니까?',
         dbErrorReverted: '데이터베이스 작업 실패, 변경 사항이 되돌려졌습니다。',
-        back: '뒤로'
+        back: '뒤로',
+        brand: '상표',
+        rating: '평가',
+        noImageAvailable: '이미지 없음'
     },
     'en-US': {
         shopName: 'My Shop',
@@ -354,7 +366,10 @@ const messages = {
         invalidStock: 'Invalid Stock!',
         insufficientStock: 'Insufficient stock to checkout. Product: {productName}, Stock: {stock}, Requested: {quantity}',
         confirmRemoveProduct: '您確定要從購物車中移除 {productName} 嗎？',
-        manageCarousel: '管理輪播'
+        manageCarousel: '管理輪播',
+        brand: 'Brand',
+        rating: 'Rating',
+        noImageAvailable: 'No Image Available'
     },
     'en-GB': {
         shopName: 'My Shop',
@@ -412,6 +427,9 @@ const messages = {
         invalidStock: 'Invalid Stock!',
         insufficientStock: 'Insufficient stock to checkout. Product: {productName}, Stock: {stock}, Requested: {quantity}',
         confirmRemoveProduct: 'Are you sure you want to remove {productName} from the basket?',
-        manageCarousel: 'Manage Carousel'
+        manageCarousel: 'Manage Carousel',
+        brand: 'Brand',
+        rating: 'Rating',
+        noImageAvailable: 'No Image Available'
     }
 };

@@ -37,7 +37,7 @@
             </div>
 
             <!-- Carousel -->
-            <div class="swiper-container">
+            <div class="swiper-container main-carousel">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in carouselImages" :key="index">
                         <img :src="image.url" class="carousel-image">
@@ -65,12 +65,35 @@
 
                     <div class="products-list">
                         <div v-for="product in filteredProducts" :key="product.id" class="product-card"
-                            :class="{ deleted: product.deleted }">
+                            :class="{ deleted: product.deleted }" itemscope itemtype="http://schema.org/Product">
                             <div class="product-header">
-                                <h3>{{ product.name }}</h3>
+                                <h3 itemprop="name">{{ product.name }}</h3>
                             </div>
-                            <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
-                            <p>{{ $t('stock') }}: {{ product.stock }}</p>
+                            <div v-if="product.images && product.images.length > 0"
+                                class="swiper-container product-swiper-container"
+                                :class="'product-swiper-' + product.id">
+                                <div class="swiper-wrapper">
+                                    <div class="swiper-slide" v-for="(img, index) in product.images" :key="index">
+                                        <img :src="img" alt="Product Image">
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="no-image-placeholder">
+                                {{ $t('noImageAvailable') }}
+                            </div>
+                            <div itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+                                <p>{{ $t('price') }}: <span itemprop="price">{{ formattedPrice(product.price) }}</span>
+                                </p>
+                                <meta itemprop="priceCurrency" content="TWD" />
+                            </div>
+                            <p>{{ $t('stock') }}: <span itemprop="inventoryLevel">{{ product.stock }}</span></p>
+                            <div itemprop="brand" itemscope itemtype="http://schema.org/Brand">
+                                <p>{{ $t('brand') }}: <span itemprop="name">{{ product.brand || 'N/A' }}</span></p>
+                            </div>
+                            <div itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">
+                                <p>{{ $t('rating') }}: <span itemprop="ratingValue">{{ product.rating || 'N/A' }}</span>
+                                    (<span itemprop="reviewCount">0</span> reviews)</p>
+                            </div>
                             <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
                             <button @click="addToCart(product)" :disabled="product.stock === 0" class="add-to-cart-btn">
                                 <i class="material-icons">add_shopping_cart</i>
@@ -255,6 +278,16 @@
                                 v-model.number="currentModal.data.newProductStock" min="0" class="form-input">
                         </div>
                         <div class="form-group">
+                            <label for="edit-product-brand">{{ $t('brand') }}: </label>
+                            <input type="text" id="edit-product-brand" v-model="currentModal.data.newProductBrand"
+                                class="form-input form-input-wide">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-image">{{ $t('imageUrl') }}: </label>
+                            <input type="text" id="edit-product-image" v-model="currentModal.data.newProductImage"
+                                class="form-input form-input-wide">
+                        </div>
+                        <div class="form-group">
                             <label for="stock-change-reason">{{ $t('reason') }}: </label>
                             <input type="text" id="stock-change-reason" v-model="currentModal.data.stockChangeReason"
                                 :placeholder="$t('stockChangeReason')" class="form-input form-input-wide">
@@ -312,22 +345,26 @@
                                     class="form-input">
                                 <input type="number" v-model.number="newProductStock" :placeholder="$t('stock')"
                                     class="form-input">
+                                <input type="text" v-model="newProductBrand" :placeholder="$t('brand')"
+                                    class="form-input">
+                                <input type="text" v-model="newProductImage" :placeholder="$t('imageUrl')"
+                                    class="form-input">
                                 <button @click="addNewProduct">{{ $t('addProduct') }}</button>
                                 <button @click="generateRandomProduct">隨機生成產品</button>
                             </div>
                         </div>
                         <div class="products-list modal-products-list">
                             <div v-for="product in productsWithSoldQuantity" :key="product.id" class="product-card"
-                                :class="{ deleted: product.deleted }">
+                                :class="{ deleted: product.deleted }" itemscope itemtype="http://schema.org/Product">
                                 <div class="product-header">
-                                    <h3>{{ product.name }}</h3>
+                                    <h3 itemprop="name">{{ product.name }}</h3>
                                     <div class="product-actions dropdown">
                                         <button class="icon-button dropbtn">
                                             <i class="material-icons">more_vert</i>
                                         </button>
                                         <div class="dropdown-content">
                                             <a href="#"
-                                                @click.prevent="openModal('editProductDetails', { product: product, newProductName: product.name, newProductPrice: product.price, newProductStock: product.stock, stockChangeReason: '', stockChanged: false })"><i
+                                                @click.prevent="openModal('editProductDetails', { product: product, newProductName: product.name, newProductPrice: product.price, newProductStock: product.stock, newProductBrand: product.brand, newProductImage: product.images.join(','), stockChangeReason: '', stockChanged: false })"><i
                                                     class="material-icons">edit</i> {{ $t('editProduct') }}</a>
                                             <a href="#" @click.prevent="viewStockHistory(product)"><i
                                                     class="material-icons">history</i> {{ $t('viewHistory') }}</a>
@@ -340,8 +377,23 @@
                                         </div>
                                     </div>
                                 </div>
-                                <p>{{ $t('price') }}: {{ formattedPrice(product.price) }}</p>
-                                <p>{{ $t('stock') }}: {{ product.stock }}</p>
+                                <img itemprop="image" :src="product.image || 'https://via.placeholder.com/150'"
+                                    alt="Product Image" style="display: none;">
+                                <div itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+                                    <p>{{ $t('price') }}: <span itemprop="price">{{ formattedPrice(product.price)
+                                            }}</span></p>
+                                    <meta itemprop="priceCurrency" content="TWD" />
+                                </div>
+                                <p>{{ $t('stock') }}: <span itemprop="inventoryLevel">{{ product.stock }}</span></p>
+                                <div itemprop="brand" itemscope itemtype="http://schema.org/Brand"
+                                    style="display: none;">
+                                    <span itemprop="name">{{ product.brand || 'N/A' }}</span>
+                                </div>
+                                <div itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating"
+                                    style="display: none;">
+                                    <span itemprop="ratingValue">{{ product.rating || 'N/A' }}</span>
+                                    <span itemprop="reviewCount">0</span>
+                                </div>
                                 <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
                             </div>
                         </div>
@@ -434,6 +486,9 @@
                     newProductName: '',
                     newProductPrice: null,
                     newProductStock: 0,
+                    newProductBrand: '',
+                    newProductImage: '',
+                    productSwipers: {},
                     paymentMethod: 'credit_card', // 預設支付方式
                     orderConfirmation: null, // 儲存訂單確認資訊
                     orderHistory: [], // 儲存歷史訂單
@@ -557,18 +612,23 @@
                 },
                 async setupDatabase() {
                     this.db = new Dexie('ShoppingCartDB');
-                    this.db.version(82).stores({
-                        products: 'id, name, price, stock, deleted',
+                    this.db.version(85).stores({
+                        products: 'id, name, price, stock, brand, rating, images, deleted',
                         cart: '++id, &productId, name, price, quantity',
                         orders: '++id, orderId, total, paymentMethod, timestamp',
                         stockHistory: '++id, productId, timestamp, oldStock, newStock, reason',
                         carouselImages: '++id, &url'
+                    });
+
+                    this.db.on('populate', async () => {
+                        await this.seedInitialData();
                     });
                 },
                 async loadProducts() {
                     if (!this.db) return;
                     try {
                         this.products = await this.db.products.toArray();
+                        this.initProductSwipers();
                     } catch (error) {
                         console.error("Could not load products from IndexedDB:", error);
                     }
@@ -673,6 +733,9 @@
                             name: this.newProductName,
                             price: parseFloat(this.newProductPrice),
                             stock: this.newProductStock,
+                            brand: this.newProductBrand || 'N/A',
+                            rating: 'N/A',
+                            images: this.newProductImage ? this.newProductImage.split(',').map(s => s.trim()) : [],
                             deleted: false
                         };
                         await this.db.products.add(newProduct);
@@ -680,6 +743,8 @@
                         this.newProductName = '';
                         this.newProductPrice = null;
                         this.newProductStock = 0;
+                        this.newProductBrand = '';
+                        this.newProductImage = '';
                     } else {
                         alert(this.$t('enterValidProduct'));
                     }
@@ -689,17 +754,54 @@
                     const randomName = randomNames[Math.floor(Math.random() * randomNames.length)] + '-' + Math.floor(Math.random() * 1000);
                     const randomPrice = parseFloat((Math.random() * 100 + 10).toFixed(2));
                     const randomStock = Math.floor(Math.random() * 100) + 1;
+                    const randomBrand = ['Nike', 'Adidas', 'Puma', 'Sony', 'Apple'][Math.floor(Math.random() * 5)];
+                    const randomRating = (Math.random() * 5).toFixed(1);
 
                     const newProduct = {
                         id: this.generateUUID(),
                         name: randomName,
                         price: randomPrice,
                         stock: randomStock,
+                        brand: randomBrand,
+                        rating: randomRating,
+                        images: [],
                         deleted: false
                     };
                     await this.db.products.add(newProduct);
                     await this.loadProducts();
                 },
+
+                async seedInitialData() {
+                    await this.db.transaction('rw', this.db.products, this.db.carouselImages, async () => {
+                        // Seed Products
+                        const productsToSeed = [
+                            {
+                                id: this.generateUUID(), name: '高品質純棉T恤', price: 499, stock: 50, brand: 'Demo', rating: 4.5,
+                                images: [],
+                                deleted: false
+                            },
+                            {
+                                id: this.generateUUID(), name: '經典款藍色牛仔褲', price: 1299, stock: 30, brand: 'Demo', rating: 4.8,
+                                images: [],
+                                deleted: false
+                            },
+                            {
+                                id: this.generateUUID(), name: '無線藍牙降噪耳機', price: 2499, stock: 20, brand: 'Demo', rating: 4.9,
+                                images: [],
+                                deleted: false
+                            }
+                        ];
+                        await this.db.products.bulkAdd(productsToSeed);
+
+                        // Seed Carousel Images
+                        const carouselImagesToSeed = [
+                            { url: 'https://cdn.pixabay.com/photo/2025/04/24/01/29/trees-9554109_1280.jpg' },
+                            { url: 'https://cdn.pixabay.com/photo/2021/08/31/10/34/boat-shed-6588414_960_720.jpg' }
+                        ];
+                        await this.db.carouselImages.bulkAdd(carouselImagesToSeed);
+                    });
+                },
+
                 async deleteProduct(product) {
                     if (confirm(this.$t('deleteConfirmation', { productName: product.name }))) {
                         try {
@@ -830,6 +932,8 @@
                     const newProductName = this.currentModal.data.newProductName;
                     const newProductPrice = parseFloat(this.currentModal.data.newProductPrice);
                     const newProductStock = parseInt(this.currentModal.data.newProductStock);
+                    const newProductBrand = this.currentModal.data.newProductBrand;
+                    const newProductImages = this.currentModal.data.newProductImage ? this.currentModal.data.newProductImage.split(',').map(s => s.trim()) : [];
                     const stockChangeReason = this.currentModal.data.stockChangeReason;
 
                     if (!newProductName || isNaN(newProductPrice) || newProductPrice <= 0 || isNaN(newProductStock) || newProductStock < 0) {
@@ -847,7 +951,13 @@
 
                     try {
                         await this.db.transaction('rw', this.db.products, this.db.cart, this.db.stockHistory, async (trans) => {
-                            await trans.products.update(product.id, { name: newProductName, price: newProductPrice, stock: newProductStock });
+                            await trans.products.update(product.id, {
+                                name: newProductName,
+                                price: newProductPrice,
+                                stock: newProductStock,
+                                brand: newProductBrand,
+                                images: newProductImages
+                            });
 
                             // Update cart items with new product name and price
                             const cartItemsToUpdate = await trans.cart.where('productId').equals(product.id).toArray();
@@ -906,14 +1016,6 @@
                     if (!this.db) return;
                     try {
                         this.carouselImages = await this.db.carouselImages.toArray();
-                        if (this.carouselImages.length === 0) {
-                            // Add default images if none exist
-                            this.carouselImages = [
-                                { url: 'https://fastly.picsum.photos/id/900/900/300.jpg?hmac=SzqDvBqN8NCFqTFkjnS6qLVSEgisX468kUBObFN1vWk' },
-                                { url: 'https://fastly.picsum.photos/id/947/900/300.jpg?hmac=gdtf6tvBC1_mHcHprIO7XQuTKrQWhGCiqm5yC1TPKYU' },
-                                { url: 'https://fastly.picsum.photos/id/871/900/300.jpg?hmac=K2ZUhHHolUQ80f-6rEVdUuq18LrwsVybIu4o-VZTOys' }
-                            ];
-                        }
                     } catch (error) {
                         console.error("Could not load carousel images from IndexedDB:", error);
                     }
@@ -923,7 +1025,7 @@
                         if (this.swiper) {
                             this.swiper.destroy(true, true);
                         }
-                        this.swiper = new Swiper('.swiper-container', {
+                        this.swiper = new Swiper('.main-carousel', {
                             loop: true,
                             pagination: {
                                 el: '.swiper-pagination',
@@ -937,6 +1039,20 @@
                                 delay: 3000,
                                 disableOnInteraction: false,
                             },
+                        });
+                    });
+                },
+                initProductSwipers() {
+                    this.$nextTick(() => {
+                        this.products.forEach(product => {
+                            const swiperSelector = `.product-swiper-${product.id}`;
+                            if (this.productSwipers[product.id]) {
+                                this.productSwipers[product.id].destroy(true, true);
+                            }
+                            this.productSwipers[product.id] = new Swiper(swiperSelector, {
+                                observer: true,
+                                observeParents: true,
+                            });
                         });
                     });
                 },
@@ -1041,7 +1157,7 @@
                         // Fallback to default exchange rates (1 for TWD, others as previously defined in i18n.js if not updated)
                         // For simplicity, we'll just log the error. In a real app, you might want to set specific fallbacks.
                     }
-                }
+                },
             },
             async created() {
                 await this.setupDatabase();
@@ -1054,6 +1170,8 @@
                 this.isLoading = false;
             }
         });
+
+
 
         // Initialize i18n with the reactive messages
         // const i18n = createI18n({

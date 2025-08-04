@@ -78,6 +78,7 @@ h2 {
     display: flex;
     flex-direction: column;
     flex: 1 1 220px;
+    min-width: 0; /* Fix for flexbox overflow */
 }
 
 .product-card.deleted {
@@ -376,6 +377,24 @@ button.remove-btn:hover {
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 30px;
+}
+
+.product-swiper-container {
+    width: 100%;
+    height: 150px;
+    margin-bottom: 15px;
+}
+
+.no-image-placeholder {
+    width: 100%;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+    color: #888;
+    border-radius: 8px;
+    margin-bottom: 15px;
 }
 
 .swiper-slide {
