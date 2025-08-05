@@ -3,6 +3,10 @@ body {
     /* height: 100%; */
 }
 
+[v-cloak] {
+    display: none;
+}
+
 * {
     box-sizing: border-box;
 }
