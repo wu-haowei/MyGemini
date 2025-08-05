@@ -90,8 +90,15 @@
                                 <p>{{ $t('brand') }}: <span itemprop="name">{{ product.brand || 'N/A' }}</span></p>
                             </div>
                             <div itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">
-                                <p>{{ $t('rating') }}: <span itemprop="ratingValue">{{ product.rating || 'N/A' }}</span>
-                                    (<span itemprop="reviewCount">0</span> reviews)</p>
+                                <p>
+                                    {{ $t('rating') }}: <span itemprop="ratingValue">{{ getAverageRating(product.id).toFixed(1) }}</span>
+                                    (<span itemprop="reviewCount">{{ getProductReviews(product.id).length }}</span> {{ $t('reviewCountText') }})
+                                </p>
+                            </div>
+                            <div class="review-button-wrapper">
+                                <button @click="openModal('productReviews', { product: product })" class="view-reviews-btn">
+                                    <i class="material-icons">reviews</i>
+                                </button>
                             </div>
                             <p>{{ $t('sold') }}: {{ product.soldQuantity }}</p>
                             <button @click="addToCart(product)" :disabled="product.stock === 0" class="add-to-cart-btn">
@@ -234,8 +241,10 @@
                             <h4>{{ $t('orderDetails') }}:</h4>
                             <ul>
                                 <li v-for="item in order.items" :key="item.id">
-                                    {{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price *
-                                    item.quantity) }}
+                                    <span>{{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price *
+                                    item.quantity) }}</span>
+                                    <button v-if="!isReviewed(order.orderId, item.productId)" @click="openModal('productReviews', { product: item, orderId: order.orderId })" class="review-item-btn">{{ $t('leaveReview') }}</button>
+                                    <span v-else class="reviewed-tag">{{ $t('itemReviewed') }}</span>
                                 </li>
                             </ul>
                         </div>
@@ -435,6 +444,68 @@
                 </div>
             </div>
 
+            <!-- Product Reviews Modal -->
+            <div v-if="currentModal && currentModal.name === 'productReviews'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('reviews') }} - {{ currentModal.data.product.name }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Average Rating -->
+                        <div class="average-rating-section">
+                            <h3>{{ $t('averageRating') }}</h3>
+                            <div class="star-rating-display">
+                                <i v-for="(star, index) in getDisplayStars(getAverageRating(reviewProductId))" :key="index"
+                                    class="material-icons" :style="{ color: star.color }">{{ star.icon }}</i>
+                            </div>
+                            <p>{{ getAverageRating(reviewProductId).toFixed(1) }} / 5.0 ({{ getProductReviews(reviewProductId).length }} {{ $t('reviewCountText') }})</p>
+                        </div>
+
+                        <!-- Existing Reviews -->
+                        <div class="reviews-list">
+                            <div v-if="getProductReviews(reviewProductId).length === 0">
+                                <p>{{ $t('noReviewsYet') }}</p>
+                            </div>
+                            <div v-else v-for="review in getProductReviews(reviewProductId)" :key="review.id"
+                                class="review-card">
+                                <div class="review-header">
+                                    <div class="star-rating-display">
+                                        <i v-for="(star, index) in getDisplayStars(review.rating)" :key="index"
+                                            class="material-icons" :style="{ color: star.color }">{{ star.icon }}</i>
+                                    </div>
+                                    <span class="review-timestamp">{{ new Date(review.timestamp).toLocaleString() }}</span>
+                                </div>
+                                <p class="review-comment">{{ review.comment }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Leave a Review Form -->
+                        <div v-if="currentModal.data.orderId" class="review-form">
+                            <h3>{{ $t('leaveReview') }}</h3>
+                            <div class="form-group">
+                                <label>{{ $t('yourRating') }}:</label>
+                                <div class="star-rating-input-interactive" @mouseleave="resetHoverRating">
+                                    <i v-for="n in 5" :key="n" class="material-icons"
+                                        @mousemove="updateHoverRating(n, $event)" @click="setRating">
+                                        {{ getStarDisplayClass(n) }}
+                                    </i>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="review-comment">{{ $t('yourComment') }}:</label>
+                                <textarea id="review-comment" v-model="newReview.comment"
+                                    class="form-input form-input-wide"></textarea>
+                            </div>
+                            <button @click="submitReview(currentModal.data.product.productId, currentModal.data.orderId)" class="submit-review-btn">{{ $t('submitReview') }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Custom Alert/Confirm Modal -->
             <div v-if="notification.show" class="modal-overlay" style="z-index: 9999;">
                 <div class="modal-content">
@@ -499,6 +570,12 @@
                     carouselImages: [],
                     newImageUrl: '',
                     modalStack: [], // Centralized modal management
+                    reviews: [], // To store all product reviews
+                    newReview: {
+                        rating: 0,
+                        comment: ''
+                    },
+                    hoverRating: 0,
                     notification: {
                         show: false,
                         type: 'alert', // 'alert' or 'confirm'
@@ -539,6 +616,13 @@
                 },
                 showModalOverlay() {
                     return this.modalStack.length > 0;
+                },
+                reviewProductId() {
+                    if (this.currentModal && this.currentModal.name === 'productReviews') {
+                        const product = this.currentModal.data.product;
+                        return product.productId || product.id;
+                    }
+                    return null;
                 }
             },
             watch: {
@@ -558,6 +642,52 @@
                 }
             },
             methods: {
+                getProductReviews(productId) {
+                    return this.reviews.filter(r => r.productId === productId).sort((a, b) => b.timestamp - a.timestamp);
+                },
+                getAverageRating(productId) {
+                    const productReviews = this.getProductReviews(productId);
+                    if (productReviews.length === 0) return 0;
+                    const totalRating = productReviews.reduce((sum, review) => sum + review.rating, 0);
+                    return totalRating / productReviews.length;
+                },
+                getDisplayStars(rating) {
+                    const stars = [];
+                    for (let i = 1; i <= 5; i++) {
+                        if (rating >= i) {
+                            stars.push({ icon: 'star', color: '#f5c518' });
+                        } else if (rating >= i - 0.5) {
+                            stars.push({ icon: 'star_half', color: '#f5c518' });
+                        } else {
+                            stars.push({ icon: 'star_border', color: '#ccc' });
+                        }
+                    }
+                    return stars;
+                },
+                isReviewed(orderId, productId) {
+                    return this.reviews.some(review => review.orderId === orderId && review.productId === productId);
+                },
+                updateHoverRating(starIndex, event) {
+                    const rect = event.target.getBoundingClientRect();
+                    const mouseX = event.clientX - rect.left;
+                    this.hoverRating = starIndex - (mouseX < rect.width / 2 ? 0.5 : 0);
+                },
+                setRating() {
+                    this.newReview.rating = this.hoverRating;
+                },
+                resetHoverRating() {
+                    this.hoverRating = 0;
+                },
+                getStarDisplayClass(starIndex) {
+                    const displayRating = this.hoverRating || this.newReview.rating;
+                    if (displayRating >= starIndex) {
+                        return 'star';
+                    } else if (displayRating >= starIndex - 0.5) {
+                        return 'star_half';
+                    } else {
+                        return 'star_border';
+                    }
+                },
                 openModal(name, data = {}) {
                     this.modalStack.push({ name, data });
                 },
@@ -614,21 +744,13 @@
                 },
                 async setupDatabase() {
                     this.db = new Dexie('ShoppingCartDB');
-                    this.db.version(1).stores({
+                    this.db.version(3).stores({
                         products: 'id, name, price, stock, brand, rating, images, deleted',
                         cart: '++id, &productId, name, price, quantity',
                         orders: '++id, orderId, total, paymentMethod, timestamp',
                         stockHistory: '++id, productId, timestamp, oldStock, newStock, reason',
-                        carouselImages: '++id, &url'
-                    }).upgrade(tx => {
-                        // This upgrade function will run if the user has a database version < 85.
-                        // It will migrate the 'image' property to an 'images' array.
-                        return tx.table('products').toCollection().modify(product => {
-                            if (product.image && !Array.isArray(product.images)) {
-                                product.images = [product.image];
-                                delete product.image;
-                            }
-                        });
+                        carouselImages: '++id, &url',
+                        reviews: '++id, [orderId+productId], productId, rating, comment, timestamp' // New store for reviews
                     });
 
                     await this.db.on('populate', (tx) => this.seedInitialData(tx));
@@ -1163,6 +1285,42 @@
                         // For simplicity, we'll just log the error. In a real app, you might want to set specific fallbacks.
                     }
                 },
+
+                async loadReviews() {
+                    if (!this.db) return;
+                    try {
+                        this.reviews = await this.db.reviews.toArray();
+                    } catch (error) {
+                        console.error("Could not load reviews from IndexedDB:", error);
+                    }
+                },
+
+                async submitReview(productId, orderId) {
+                    if (this.newReview.rating === 0) {
+                        this.showAlert(this.$t('ratingIsRequired'));
+                        return;
+                    }
+
+                    const review = {
+                        orderId: orderId,
+                        productId: productId,
+                        rating: this.newReview.rating,
+                        comment: this.newReview.comment,
+                        timestamp: new Date().getTime(),
+                    };
+
+                    try {
+                        await this.db.reviews.add(review);
+                        await this.loadReviews(); // Reload reviews to update the UI
+                        this.newReview.rating = 0; // Reset form
+                        this.newReview.comment = '';
+                        this.closeModal(); // Close the review modal
+                        this.showAlert(this.$t('reviewSubmitted'));
+                    } catch (error) {
+                        console.error("Error submitting review:", error);
+                        this.showAlert('Failed to submit review.');
+                    }
+                },
             },
             async created() {
                 this.setupDatabase();
@@ -1174,6 +1332,7 @@
                         this.loadCart(),
                         this.loadOrderHistory(),
                         this.loadCarouselImages(),
+                        this.loadReviews(),
                         this.fetchExchangeRates()
                     ]);
                     this.initSwiper();

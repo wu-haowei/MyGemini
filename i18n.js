@@ -75,7 +75,21 @@ const messages = {
         back: '返回',
         brand: '品牌',
         rating: '評價',
-        noImageAvailable: '沒有圖片'
+        noImageAvailable: '沒有圖片',
+        leaveReview: '撰寫評論',
+        submitReview: '送出評論',
+        reviews: '商品評論',
+        yourRating: '您的評分',
+        yourComment: '您的評論',
+        noReviewsYet: '尚無評論。',
+        averageRating: '平均評分',
+        reviewSubmitted: '評論已成功送出！',
+        ratingIsRequired: '評分是必填的。',
+        rateProduct: '評價商品',
+        viewReviews: '查看評論',
+        mustPurchaseToReview: '您需要購買此商品才能留下評論。',
+        itemReviewed: '已評論',
+        reviewCountText: '則評論'
     },
     'zh-CN': {
         shopName: '我的商店',
