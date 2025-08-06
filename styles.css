@@ -383,10 +383,15 @@ button.remove-btn:hover {
     margin-bottom: 30px;
 }
 
+.product-media-container {
+    position: relative;
+    margin-bottom: 15px;
+}
+
 .product-swiper-container {
     width: 100%;
     height: 150px;
-    margin-bottom: 15px;
+    overflow: hidden; /* Revert back to hidden */
 }
 
 .no-image-placeholder {
@@ -448,23 +453,21 @@ button.remove-btn:hover {
 }
 
 .swiper-pagination {
-    position: absolute;
-    bottom: 10px;
-    left: 0;
-    right: 0;
+    position: relative; /* Change from absolute */
+    bottom: auto; /* Reset bottom */
+    margin-top: 10px; /* Add space between swiper and pagination */
     display: flex;
     justify-content: center;
     gap: 6px;
-    /* Add a small gap between bullets */
 }
 
 .swiper-pagination-bullet {
-    background: white;
+    background: #888;
     opacity: 0.7;
 }
 
 .swiper-pagination-bullet-active {
-    background: #42b983;
+    background: #333;
     opacity: 1;
 }
 
@@ -953,4 +956,46 @@ body.modal-open {
 * {
     scrollbar-width: thin;
     scrollbar-color: #888 #f1f1f1;
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.product-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.mute-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.youtube-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+}
+
+.youtube-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
