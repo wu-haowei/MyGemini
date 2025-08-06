@@ -999,3 +999,150 @@ body.modal-open {
     width: 100%;
     height: 100%;
 }
+
+.delivery-status-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.progress-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background-color: #ddd;
+    z-index: 1;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    max-width: 20%; /* Ensure steps are evenly distributed */
+}
+
+.step-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #ddd;
+    border: 2px solid #fff;
+    transition: background-color 0.3s;
+}
+
+.status-timestamp {
+    font-size: 0.7em;
+    color: #666;
+    text-align: center;
+    line-height: 1.2;
+    margin-top: 5px;
+}
+
+.step-label {
+    font-size: 0.8em;
+    color: #888;
+    margin-top: 5px;
+    text-align: center;
+}
+
+.step.completed .step-dot {
+    background-color: #42b983;
+}
+
+.step.active .step-dot {
+    background-color: #f0ad4e;
+}
+
+.step.completed .step-label {
+    color: #333;
+    font-weight: bold;
+}
+
+.update-status-btn {
+    display: block;
+    margin: 10px auto 0;
+    background-color: #5bc0de;
+}
+
+.update-status-btn:hover {
+    background-color: #31b0d5;
+}
+
+.delivery-history {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.delivery-history h5 {
+    margin-bottom: 10px;
+}
+
+.delivery-history ul {
+    list-style: none;
+    padding: 0;
+}
+
+.delivery-history li {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 0.9em;
+}
+
+@media (max-width: 768px) {
+    .progress-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-left: 0;
+    }
+
+    .progress-bar::before {
+        left: 7px; /* (16px dot / 2) - (2px line / 2) */
+        top: 8px; /* Start line in the middle of the first dot */
+        bottom: 8px; /* End line in the middle of the last dot */
+        width: 2px;
+        height: auto;
+        right: auto;
+    }
+
+    .step {
+        flex-direction: row;
+        align-items: center;
+        max-width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .step:last-child {
+        margin-bottom: 0;
+    }
+
+    .step-dot {
+        margin-right: 15px;
+    }
+
+    .step-label {
+        margin-top: 0;
+        text-align: left;
+    }
+
+    .status-timestamp {
+        margin-left: 10px; /* Add some space between label and timestamp */
+        font-size: 0.8em; /* Adjust font size for small screens */
+        line-height: 1.2; /* Ensure single line */
+    }
+}

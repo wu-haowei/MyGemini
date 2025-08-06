@@ -255,6 +255,18 @@
                             <p>{{ $t('date') }}: {{ new Date(order.timestamp).toLocaleString() }}</p>
                             <p>{{ $t('total') }}: {{ formattedPrice(order.total) }}</p>
                             <p>{{ $t('paymentMethod') }}: {{ $t(order.paymentMethod) }}</p>
+                            <div class="delivery-status-container">
+                                <h4>{{ $t('deliveryStatus') }}</h4>
+                                <div class="progress-bar">
+                                    <div v-for="(status, index) in deliveryStatuses" :key="index" 
+                                        :class="getStepClass(order, status)">
+                                        <div class="step-dot"></div>
+                                        <div class="step-label">{{ $t(status) }}</div>
+                                        <span v-if="getDeliveryStatusTimestamp(order, status)" class="status-timestamp" v-html="getDeliveryStatusTimestamp(order, status)"></span>
+                                    </div>
+                                </div>
+                                <button @click="updateDeliveryStatus(order)" class="update-status-btn">{{ $t('updateStatus') }}</button>
+                            </div>
                             <h4>{{ $t('orderDetails') }}:</h4>
                             <ul>
                                 <li v-for="item in order.items" :key="item.id">
@@ -579,6 +591,7 @@
                     paymentMethod: 'credit_card', // 預設支付方式
                     orderConfirmation: null, // 儲存訂單確認資訊
                     orderHistory: [], // 儲存歷史訂單
+                    deliveryStatuses: ['Order Placed', 'Payment Confirmed', 'Order Shipped', 'Order Complete', 'Pending Review'],
                     isLoading: true, // 控制初始載入畫面
                     isProcessingOrder: false, // 控制結帳處理載入畫面
                     isAddingToEmptyCart: false, // 控制加入空購物車時的載入畫面
@@ -599,7 +612,8 @@
                         title: '',
                         message: '',
                         onConfirm: null
-                    }
+                    },
+                    isSmallScreen: false, // New reactive property
                 };
             },
             computed: {
@@ -742,6 +756,9 @@
                         return 'star_border';
                     }
                 },
+                checkScreenSize() {
+                    this.isSmallScreen = window.innerWidth <= 768; // Define your breakpoint for small screens
+                },
                 openModal(name, data = {}) {
                     this.modalStack.push({ name, data });
                 },
@@ -798,13 +815,13 @@
                 },
                 async setupDatabase() {
                     this.db = new Dexie('ShoppingCartDB');
-                    this.db.version(3).stores({
+                    this.db.version(5).stores({
                         products: 'id, name, price, stock, brand, rating, images, deleted',
                         cart: '++id, &productId, name, price, quantity',
-                        orders: '++id, orderId, total, paymentMethod, timestamp',
+                        orders: '++id, orderId, total, paymentMethod, timestamp, deliveryStatus, deliveryHistory',
                         stockHistory: '++id, productId, timestamp, oldStock, newStock, reason',
                         carouselImages: '++id, &url',
-                        reviews: '++id, [orderId+productId], productId, rating, comment, timestamp' // New store for reviews
+                        reviews: '++id, [orderId+productId], productId, rating, comment, timestamp'
                     });
 
                     await this.db.on('populate', (tx) => this.seedInitialData(tx));
@@ -1048,7 +1065,9 @@
                             total: this.cartTotal,
                             paymentMethod: this.paymentMethod,
                             timestamp: new Date().toISOString(),
-                            items: this.cart.map(item => ({ ...item })) // 複製購物車商品，避免引用問題
+                            items: this.cart.map(item => ({ ...item })), // 複製購物車商品，避免引用問題
+                            deliveryStatus: 'Order Placed', // Initial status
+                            deliveryHistory: [{ status: 'Order Placed', timestamp: new Date().toISOString() }]
                         };
 
                         await this.db.transaction('rw', this.db.orders, this.db.products, this.db.cart, this.db.stockHistory, async (trans) => {
@@ -1099,10 +1118,81 @@
                 async loadOrderHistory() {
                     if (!this.db) return;
                     try {
-                        this.orderHistory = await this.db.orders.toArray();
-                        this.orderHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        let orders = await this.db.orders.toArray();
+                        // Ensure all orders have a deliveryHistory array
+                        orders = orders.map(order => {
+                            if (!order.deliveryHistory) {
+                                // Initialize with the current status if history is missing
+                                order.deliveryHistory = [{
+                                    status: order.deliveryStatus || 'Order Placed',
+                                    timestamp: order.timestamp || new Date().toISOString()
+                                }];
+                            }
+                            return order;
+                        });
+                        this.orderHistory = orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                     } catch (error) {
                         console.error("Could not load order history from IndexedDB:", error);
+                    }
+                },
+
+                getStepClass(order, status) {
+                    const currentIndex = this.deliveryStatuses.indexOf(order.deliveryStatus);
+                    const stepIndex = this.deliveryStatuses.indexOf(status);
+                    return {
+                        'step': true,
+                        'completed': stepIndex < currentIndex,
+                        'active': stepIndex === currentIndex
+                    };
+                },
+
+                getDeliveryStatusTimestamp(order, status) {
+                    const historyEntry = order.deliveryHistory.find(entry => entry.status === status);
+                    if (historyEntry) {
+                        const date = new Date(historyEntry.timestamp);
+                        const datePart = date.toLocaleDateString(this.locale);
+                        const timePart24hr = date.toLocaleTimeString(this.locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+                        if (this.isSmallScreen) {
+                            return `${datePart} ${timePart24hr}`;
+                        } else {
+                            return `${datePart}<br>${timePart24hr}`;
+                        }
+                    }
+                    return '';
+                },
+
+                async updateDeliveryStatus(order) {
+                    const currentIndex = this.deliveryStatuses.indexOf(order.deliveryStatus);
+
+                    // If the order is already 'Order Complete', check if all products are reviewed
+                    if (order.deliveryStatus === 'Order Complete') {
+                        const allProductsReviewed = order.items.every(item => this.isReviewed(order.orderId, item.productId));
+                        if (!allProductsReviewed) {
+                            this.showAlert(this.$t('cannotUpdateUnreviewedOrder'));
+                            return;
+                        }
+                    }
+
+                    if (currentIndex < this.deliveryStatuses.length - 1) {
+                        const nextStatus = this.deliveryStatuses[currentIndex + 1];
+                        try {
+                            await this.db.transaction('rw', this.db.orders, async (trans) => {
+                                const orderToUpdate = await trans.orders.get(order.id);
+                                if (orderToUpdate) {
+                                    orderToUpdate.deliveryStatus = nextStatus;
+                                    if (!orderToUpdate.deliveryHistory) {
+                                        orderToUpdate.deliveryHistory = [];
+                                    }
+                                    orderToUpdate.deliveryHistory.push({ status: nextStatus, timestamp: new Date().toISOString() });
+                                    await trans.orders.put(orderToUpdate);
+                                }
+                            });
+                            await this.loadOrderHistory();
+                        } catch (error) {
+                            console.error("Error updating delivery status:", error);
+                            this.showAlert('Failed to update status.');
+                        }
                     }
                 },
                 startEditStock(product) {
@@ -1374,9 +1464,49 @@
                         this.newReview.comment = '';
                         this.closeModal(); // Close the review modal
                         this.showAlert(this.$t('reviewSubmitted'));
+                        await this.checkAndCompleteOrder(orderId); // Check if order can be completed
                     } catch (error) {
                         console.error("Error submitting review:", error);
                         this.showAlert('Failed to submit review.');
+                    }
+                },
+
+                async checkAndCompleteOrder(orderId) {
+                    try {
+                        const order = await this.db.orders.get(orderId);
+                        if (!order) return;
+
+                        const orderProductIds = order.items.map(item => item.productId);
+                        const reviewsForOrder = await this.db.reviews.where('orderId').equals(orderId).toArray();
+
+                        const allReviewed = orderProductIds.every(productId =>
+                            reviewsForOrder.some(review => review.productId === productId)
+                        );
+
+                        // If all products are reviewed and the order is not already in 'Pending Review' status
+                        if (allReviewed && order.deliveryStatus !== 'Pending Review') {
+                            let latestReviewTimestamp = 0;
+                            reviewsForOrder.forEach(review => {
+                                if (review.timestamp > latestReviewTimestamp) {
+                                    latestReviewTimestamp = review.timestamp;
+                                }
+                            });
+
+                            order.deliveryStatus = 'Pending Review'; // Set to Pending Review
+                            if (!order.deliveryHistory) {
+                                order.deliveryHistory = [];
+                            }
+                            order.deliveryHistory.push({
+                                status: 'Pending Review', // Record the transition to Pending Review
+                                timestamp: new Date(latestReviewTimestamp).toISOString()
+                            });
+
+                            await this.db.orders.put(order);
+                            await this.loadOrderHistory();
+                            this.showAlert(this.$t('orderCompletedAutomatically', { orderId: order.orderId }));
+                        }
+                    } catch (error) {
+                        console.error("Error checking and completing order:", error);
                     }
                 },
             },
@@ -1400,6 +1530,11 @@
                 } finally {
                     this.isLoading = false;
                 }
+                window.addEventListener('resize', this.checkScreenSize);
+                this.checkScreenSize(); // Initial check
+            },
+            beforeUnmount() {
+                window.removeEventListener('resize', this.checkScreenSize);
             }
         });
 
