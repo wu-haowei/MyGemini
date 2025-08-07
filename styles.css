@@ -1146,3 +1146,32 @@ body.modal-open {
         line-height: 1.2; /* Ensure single line */
     }
 }
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.admin-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #6c757d;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.admin-button:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+    color: white; /* Ensure text color remains white on hover */
+}
+
+.admin-button .material-icons {
+    font-size: 20px;
+}

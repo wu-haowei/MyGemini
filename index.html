@@ -4,31 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vue Shopping Cart with IndexedDB</title>
+    <title>My Shop</title>
+    <link rel="icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3ea.png" type="image/png">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-
     <div id="app" v-cloak>
-        <header class="app-header-fixed">
-            <div class="app-header-content">
-                <h1>{{ $t('shopName') }}</h1>
-                <div class="language-selector">
-                    <label for="language-select">{{ $t('language') }}: </label>
-                    <select id="language-select" v-model="locale" @change="$i18n.locale = locale">
-                        <option value="zh-TW">繁體中文</option>
-                        <option value="zh-CN">简体中文</option>
-                        <option value="ja">日本語</option>
-                        <option value="ko">한국어</option>
-                        <option value="en-US">English (US)</option>
-                        <option value="en-GB">English (UK)</option>
-                    </select>
-                </div>
-            </div>
-        </header>
+        <header-component page-type="index">
+        </header-component>
+
 
         <main class="main-content">
             <div v-if="isLoading || isProcessingOrder" class="loading-overlay">
@@ -78,7 +65,8 @@
                                             </template>
                                             <template v-else-if="getMediaType(media) === 'video'">
                                                 <div class="video-container" style="position: relative;">
-                                                    <video :src="media" muted loop playsinline autoplay class="product-video"></video>
+                                                    <video :src="media" muted loop playsinline autoplay
+                                                        class="product-video"></video>
                                                     <button @click="toggleMute($event)" class="mute-btn material-icons">
                                                         volume_off
                                                     </button>
@@ -86,7 +74,9 @@
                                             </template>
                                             <template v-else-if="getMediaType(media) === 'youtube'">
                                                 <div class="youtube-container">
-                                                    <iframe :src="getYouTubeEmbedUrl(media)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                                    <iframe :src="getYouTubeEmbedUrl(media)" frameborder="0"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowfullscreen></iframe>
                                                 </div>
                                             </template>
                                         </div>
@@ -108,12 +98,15 @@
                             </div>
                             <div itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">
                                 <p>
-                                    {{ $t('rating') }}: <span itemprop="ratingValue">{{ getAverageRating(product.id).toFixed(1) }}</span>
-                                    (<span itemprop="reviewCount">{{ getProductReviews(product.id).length }}</span> {{ $t('reviewCountText') }})
+                                    {{ $t('rating') }}: <span itemprop="ratingValue">{{
+                                        getAverageRating(product.id).toFixed(1) }}</span>
+                                    (<span itemprop="reviewCount">{{ getProductReviews(product.id).length }}</span> {{
+                                    $t('reviewCountText') }})
                                 </p>
                             </div>
                             <div class="review-button-wrapper">
-                                <button @click="openModal('productReviews', { product: product })" class="view-reviews-btn">
+                                <button @click="openModal('productReviews', { product: product })"
+                                    class="view-reviews-btn">
                                     <i class="material-icons">reviews</i>
                                 </button>
                             </div>
@@ -258,21 +251,25 @@
                             <div class="delivery-status-container">
                                 <h4>{{ $t('deliveryStatus') }}</h4>
                                 <div class="progress-bar">
-                                    <div v-for="(status, index) in deliveryStatuses" :key="index" 
+                                    <div v-for="(status, index) in deliveryStatuses" :key="index"
                                         :class="getStepClass(order, status)">
                                         <div class="step-dot"></div>
                                         <div class="step-label">{{ $t(status) }}</div>
-                                        <span v-if="getDeliveryStatusTimestamp(order, status)" class="status-timestamp" v-html="getDeliveryStatusTimestamp(order, status)"></span>
+                                        <span v-if="getDeliveryStatusTimestamp(order, status)" class="status-timestamp"
+                                            v-html="getDeliveryStatusTimestamp(order, status)"></span>
                                     </div>
                                 </div>
-                                <button @click="updateDeliveryStatus(order)" class="update-status-btn">{{ $t('updateStatus') }}</button>
+                                <button @click="updateDeliveryStatus(order)" class="update-status-btn">{{
+                                    $t('updateStatus') }}</button>
                             </div>
                             <h4>{{ $t('orderDetails') }}:</h4>
                             <ul>
                                 <li v-for="item in order.items" :key="item.id">
                                     <span>{{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price *
-                                    item.quantity) }}</span>
-                                    <button v-if="!isReviewed(order.orderId, item.productId)" @click="openModal('productReviews', { product: item, orderId: order.orderId })" class="review-item-btn">{{ $t('leaveReview') }}</button>
+                                        item.quantity) }}</span>
+                                    <button v-if="!isReviewed(order.orderId, item.productId)"
+                                        @click="openModal('productReviews', { product: item, orderId: order.orderId })"
+                                        class="review-item-btn">{{ $t('leaveReview') }}</button>
                                     <span v-else class="reviewed-tag">{{ $t('itemReviewed') }}</span>
                                 </li>
                             </ul>
@@ -488,10 +485,12 @@
                         <div class="average-rating-section">
                             <h3>{{ $t('averageRating') }}</h3>
                             <div class="star-rating-display">
-                                <i v-for="(star, index) in getDisplayStars(getAverageRating(reviewProductId))" :key="index"
-                                    class="material-icons" :style="{ color: star.color }">{{ star.icon }}</i>
+                                <i v-for="(star, index) in getDisplayStars(getAverageRating(reviewProductId))"
+                                    :key="index" class="material-icons" :style="{ color: star.color }">{{ star.icon
+                                    }}</i>
                             </div>
-                            <p>{{ getAverageRating(reviewProductId).toFixed(1) }} / 5.0 ({{ getProductReviews(reviewProductId).length }} {{ $t('reviewCountText') }})</p>
+                            <p>{{ getAverageRating(reviewProductId).toFixed(1) }} / 5.0 ({{
+                                getProductReviews(reviewProductId).length }} {{ $t('reviewCountText') }})</p>
                         </div>
 
                         <!-- Existing Reviews -->
@@ -506,7 +505,8 @@
                                         <i v-for="(star, index) in getDisplayStars(review.rating)" :key="index"
                                             class="material-icons" :style="{ color: star.color }">{{ star.icon }}</i>
                                     </div>
-                                    <span class="review-timestamp">{{ new Date(review.timestamp).toLocaleString() }}</span>
+                                    <span class="review-timestamp">{{ new Date(review.timestamp).toLocaleString()
+                                        }}</span>
                                 </div>
                                 <p class="review-comment">{{ review.comment }}</p>
                             </div>
@@ -529,7 +529,9 @@
                                 <textarea id="review-comment" v-model="newReview.comment"
                                     class="form-input form-input-wide"></textarea>
                             </div>
-                            <button @click="submitReview(currentModal.data.product.productId, currentModal.data.orderId)" class="submit-review-btn">{{ $t('submitReview') }}</button>
+                            <button
+                                @click="submitReview(currentModal.data.product.productId, currentModal.data.orderId)"
+                                class="submit-review-btn">{{ $t('submitReview') }}</button>
                         </div>
                     </div>
                 </div>
@@ -565,6 +567,7 @@
     <script src="https://unpkg.com/vue-i18n@9/dist/vue-i18n.global.js"></script>
     <!-- I18n Messages -->
     <script src="i18n.js"></script>
+    <script src="header-component.js"></script>
 
     <script>
         const { createApp, reactive } = Vue;
@@ -995,9 +998,9 @@
                     ];
                     await this.db.products.bulkAdd(productsToSeed);
 
-                        const carouselImagesToSeed = [
-                            { url: 'https://cdn.pixabay.com/photo/2025/04/24/01/29/trees-9554109_1280.jpg' },
-                            { url: 'https://cdn.pixabay.com/photo/2021/08/31/10/34/boat-shed-6588414_960_720.jpg' }]
+                    const carouselImagesToSeed = [
+                        { url: 'https://cdn.pixabay.com/photo/2025/04/24/01/29/trees-9554109_1280.jpg' },
+                        { url: 'https://cdn.pixabay.com/photo/2021/08/31/10/34/boat-shed-6588414_960_720.jpg' }]
                     await this.db.carouselImages.bulkAdd(carouselImagesToSeed);
                 },
                 async deleteProduct(product) {
@@ -1548,6 +1551,9 @@
         // });
 
         app.use(i18n);
+
+
+        app.component('header-component', headerComponent);
         app.mount('#app');
     </script>
 
