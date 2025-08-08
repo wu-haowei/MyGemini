@@ -826,9 +826,6 @@
                         carouselImages: '++id, &url',
                         reviews: '++id, [orderId+productId], productId, rating, comment, timestamp'
                     });
-
-                    await this.db.on('populate', (tx) => this.seedInitialData(tx));
-
                 },
                 async loadProducts() {
                     if (!this.db) return;
@@ -977,31 +974,37 @@
                     await this.loadProducts();
                 },
                 async seedInitialData() {
-                    // This method is called within the populate transaction, so we don't need a new one.
-                    // We can directly use this.db.products and this.db.carouselImages
-                    const productsToSeed = [
-                        {
-                            id: this.generateUUID(), name: '高品質純棉T恤', price: 499, stock: 50, brand: 'Demo', rating: 4.5,
-                            images: [],
-                            deleted: false
-                        },
-                        {
-                            id: this.generateUUID(), name: '經典款藍色牛仔褲', price: 1299, stock: 30, brand: 'Demo', rating: 4.8,
-                            images: [],
-                            deleted: false
-                        },
-                        {
-                            id: this.generateUUID(), name: '無線藍牙降噪耳機', price: 2499, stock: 20, brand: 'Demo', rating: 4.9,
-                            images: [],
-                            deleted: false
+                    // This method is now called explicitly when the DB is empty
+                    try {
+                        const response = await fetch('shoppingcart_backup.json');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
                         }
-                    ];
-                    await this.db.products.bulkAdd(productsToSeed);
+                        const data = await response.json();
 
-                    const carouselImagesToSeed = [
-                        { url: 'https://cdn.pixabay.com/photo/2025/04/24/01/29/trees-9554109_1280.jpg' },
-                        { url: 'https://cdn.pixabay.com/photo/2021/08/31/10/34/boat-shed-6588414_960_720.jpg' }]
-                    await this.db.carouselImages.bulkAdd(carouselImagesToSeed);
+                        await this.db.transaction('rw', this.db.products, this.db.carouselImages, async () => {
+                            if (data.products && Array.isArray(data.products)) {
+                                const validProducts = data.products.map(p => ({
+                                    id: p.id || this.generateUUID(),
+                                    name: p.name,
+                                    price: p.price,
+                                    stock: p.stock,
+                                    brand: p.brand,
+                                    rating: p.rating,
+                                    images: p.images || [],
+                                    deleted: p.deleted || false
+                                }));
+                                await this.db.products.bulkAdd(validProducts);
+                            }
+
+                            if (data.carouselImages && Array.isArray(data.carouselImages)) {
+                                await this.db.carouselImages.bulkAdd(data.carouselImages);
+                            }
+                        });
+                        console.log("Database seeded successfully.");
+                    } catch (error) {
+                        console.error("Failed to seed initial data from JSON:", error);
+                    }
                 },
                 async deleteProduct(product) {
                     if (confirm(this.$t('deleteConfirmation', { productName: product.name }))) {
@@ -1290,6 +1293,7 @@
                     if (!this.db) return;
                     try {
                         this.carouselImages = await this.db.carouselImages.toArray();
+                        this.initSwiper(); // Initialize Swiper after images are loaded
                     } catch (error) {
                         console.error("Could not load carousel images from IndexedDB:", error);
                     }
@@ -1299,8 +1303,10 @@
                         if (this.swiper) {
                             this.swiper.destroy(true, true);
                         }
-                        this.swiper = new Swiper('.main-carousel', {
-                            loop: true,
+
+                        const swiperOptions = {
+                            observer: true,
+                            observeParents: true,
                             pagination: {
                                 el: '.swiper-pagination',
                                 clickable: true,
@@ -1313,7 +1319,13 @@
                                 delay: 3000,
                                 disableOnInteraction: false,
                             },
-                        });
+                        };
+
+                        if (this.carouselImages.length >= 3) {
+                            swiperOptions.loop = true;
+                        }
+
+                        this.swiper = new Swiper('.main-carousel', swiperOptions);
                     });
                 },
                 initProductSwipers() {
@@ -1514,9 +1526,17 @@
                 },
             },
             async created() {
-                this.setupDatabase();
+                  this.setupDatabase();
                 try {
                     await this.db.open();
+
+                    // Check if the database is empty. If so, seed it.
+                    const productCount = await this.db.products.count();
+                    if (productCount === 0) {
+                        console.log("Database is empty, seeding initial data...");
+                        await this.seedInitialData();
+                    }
+
                     // Now that the DB is open (and populated if it was the first time), load all data.
                     await Promise.all([
                         this.loadProducts(),
@@ -1526,7 +1546,6 @@
                         this.loadReviews(),
                         this.fetchExchangeRates()
                     ]);
-                    this.initSwiper();
                 } catch (error) {
                     console.error("Failed to initialize the application:", error);
                     this.showAlert('Failed to load database. Please try refreshing.', 'Initialization Error');

@@ -1,0 +1,60 @@
+{
+  "products": [
+    {
+      "id": "4f823024-9345-43bf-94f3-b19497d3c31f",
+      "name": "立下界限（暢銷增訂版）：卸除生命中不必要的內疚感，找回平靜，成為溫柔且堅定的自己",
+      "price": 450,
+      "stock": 30,
+      "brand": "天下雜誌",
+      "rating": "N/A",
+      "images": [
+        "https://im1.book.com.tw/image/getImage?i=https://www.books.com.tw/img/E05/027/60/E050276004.jpg&v=688042a7k&w=348&h=348",
+        "https://www.youtube.com/embed/XcJy2_FCC00?si=SvYbdTcl9XKwlD8j"
+      ],
+      "deleted": false
+    },
+    {
+      "id": "926eeb26-33ba-46cf-a174-3afab2fed60f",
+      "name": "開創心態：華頓商學院最具影響力教授，不墨守成規的破局智慧【亞當．格蘭特「最有價值的四堂課」】",
+      "price": 300,
+      "stock": 30,
+      "brand": "平安文化",
+      "rating": "N/A",
+      "images": [
+        "https://im2.book.com.tw/image/getImage?i=https://www.books.com.tw/img/E05/027/64/E050276475.jpg&v=6889d217k&w=348&h=348"
+      ],
+      "deleted": false
+    },
+    {
+      "id": "96c84fa0-e986-46ec-be8f-f0bdec569da5",
+      "name": "懸案密碼3：瓶中信",
+      "price": 300,
+      "stock": 30,
+      "brand": "奇幻基地",
+      "rating": "N/A",
+      "images": [
+        "https://im2.book.com.tw/image/getImage?i=https://www.books.com.tw/img/E05/006/66/E050066609.jpg&v=5e8fd5f1k&w=348&h=348",
+        "https://www.youtube.com/embed/cAbGl7v4j1A?si=UKy5BgE7NdB-Yihr"
+      ],
+      "deleted": false
+    }
+  ],
+  "cart": [],
+  "orders": [],
+  "stockHistory": [],
+  "carouselImages": [
+    {
+      "url": "https://im2.book.com.tw/image/getImage?i=https://addons.books.com.tw/G/ADbanner/2025/07/cite/cite902x360_a1.jpg&v=6880490ck&w=902&h=360",
+      "id": 3
+    },
+    {
+      "url": "https://im1.book.com.tw/image/getImage?i=https://addons.books.com.tw/G/ADbanner/fashion/beauty/2025/08/0808_902x360.jpg&v=6892e9d2k&w=902&h=360",
+      "id": 4
+    },
+    {
+      "url": "https://im1.book.com.tw/image/getImage?i=https://addons.books.com.tw/G/ADbanner/2025/07/D020082758-902x360.jpg&v=687a0a44k&w=902&h=360",
+      "id": 5
+    }
+  ],
+  "reviews": []
+}
