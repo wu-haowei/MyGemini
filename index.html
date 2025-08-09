@@ -268,7 +268,7 @@
                                     <span>{{ item.name }} x {{ item.quantity }} - {{ formattedPrice(item.price *
                                         item.quantity) }}</span>
                                     <button v-if="!isReviewed(order.orderId, item.productId)"
-                                        @click="openModal('productReviews', { product: item, orderId: order.orderId })"
+                                        @click="openModal('leaveReview', { product: item, orderId: order.orderId })"
                                         class="review-item-btn">{{ $t('leaveReview') }}</button>
                                     <span v-else class="reviewed-tag">{{ $t('itemReviewed') }}</span>
                                 </li>
@@ -512,9 +512,23 @@
                             </div>
                         </div>
 
-                        <!-- Leave a Review Form -->
-                        <div v-if="currentModal.data.orderId" class="review-form">
-                            <h3>{{ $t('leaveReview') }}</h3>
+                        <!-- Leave a Review Form is now in its own modal -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leave Review Modal -->
+            <div v-if="currentModal && currentModal.name === 'leaveReview'" class="modal-overlay"
+                :style="{ zIndex: getModalZIndex(modalStack.indexOf(currentModal)) }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button @click="closeModal()" class="close-button" v-if="modalStack.length > 1"><i
+                                class="material-icons">arrow_back</i></button>
+                        <h2>{{ $t('leaveReview') }} - {{ currentModal.data.product.name }}</h2>
+                        <button @click="closeModal()" class="close-button">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="review-form">
                             <div class="form-group">
                                 <label>{{ $t('yourRating') }}:</label>
                                 <div class="star-rating-input-interactive" @mouseleave="resetHoverRating">
@@ -568,6 +582,7 @@
     <!-- I18n Messages -->
     <script src="i18n.js"></script>
     <script src="header-component.js"></script>
+    <script src="db.js"></script>
 
     <script>
         const { createApp, reactive } = Vue;
@@ -584,7 +599,6 @@
                 return {
                     products: [],
                     cart: [], // 購物車內容
-                    db: null,    // IndexedDB instance
                     newProductName: '',
                     newProductPrice: null,
                     newProductStock: 0,
@@ -814,33 +828,19 @@
                             .replace('{symbol}', localeConfig.currencySymbol || '')
                             .replace('{value}', finalPrice);
                     }
-                    return `NT$${price}`;
-                },
-                async setupDatabase() {
-                    this.db = new Dexie('ShoppingCartDB');
-                    this.db.version(5).stores({
-                        products: 'id, name, price, stock, brand, rating, images, deleted',
-                        cart: '++id, &productId, name, price, quantity',
-                        orders: '++id, orderId, total, paymentMethod, timestamp, deliveryStatus, deliveryHistory',
-                        stockHistory: '++id, productId, timestamp, oldStock, newStock, reason',
-                        carouselImages: '++id, &url',
-                        reviews: '++id, [orderId+productId], productId, rating, comment, timestamp'
-                    });
+                    return `NT${price}`;
                 },
                 async loadProducts() {
-                    if (!this.db) return;
                     try {
-                        this.products = await this.db.products.toArray();
+                        this.products = await databaseService.getAll('products');
                         this.initProductSwipers();
                     } catch (error) {
                         console.error("Could not load products from IndexedDB:", error);
                     }
                 },
                 async loadCart() {
-                    if (!this.db) return;
                     try {
-                        const cartItems = await this.db.cart.toArray();
-                        this.cart = cartItems;
+                        this.cart = await databaseService.getAll('cart');
                     } catch (error) {
                         console.error("Could not load cart from IndexedDB:", error);
                     }
@@ -857,27 +857,7 @@
                     }
 
                     try {
-                        await this.db.transaction('rw', this.db.cart, async (trans) => {
-                            const cartTable = trans.table('cart');
-                            const existingItem = await cartTable.where('productId').equals(product.id).first();
-
-                            if (existingItem) {
-                                if (existingItem.quantity >= product.stock) {
-                                    this.showAlert(this.$t('maxQuantityReached'));
-                                    return;
-                                }
-                                await cartTable.update(existingItem.id, {
-                                    quantity: existingItem.quantity + 1
-                                });
-                            } else {
-                                await cartTable.add({
-                                    productId: product.id,
-                                    name: product.name,
-                                    price: product.price,
-                                    quantity: 1
-                                });
-                            }
-                        });
+                        await databaseService.addToCart(product);
                         await this.loadCart();
 
                         if (wasCartEmpty) {
@@ -889,12 +869,16 @@
                         if (wasCartEmpty) {
                             this.isAddingToEmptyCart = false;
                         }
-                        console.error("Error adding to cart:", error);
+                        if (error.message === 'maxQuantityReached') {
+                            this.showAlert(this.$t('maxQuantityReached'));
+                        } else {
+                            console.error("Error adding to cart:", error);
+                        }
                     }
                 },
                 async removeFromCart(itemId) {
                     try {
-                        await this.db.cart.delete(itemId);
+                        await databaseService.deleteItem('cart', itemId);
                         await this.loadCart();
                     } catch (error) {
                         console.error("Error removing from cart:", error);
@@ -903,30 +887,27 @@
                 async updateQuantity(item, change) {
                     try {
                         const productInStock = this.products.find(p => p.id === item.productId);
-                        const newQuantity = item.quantity + change;
-
-                        if (change > 0 && productInStock && newQuantity > productInStock.stock) {
+                        
+                        if (change > 0 && productInStock && (item.quantity + change) > productInStock.stock) {
                             this.showAlert(this.$t('maxQuantityReached'));
                             return;
                         }
 
-                        if (newQuantity === 0) {
+                        if ((item.quantity + change) === 0) {
                             const confirmed = await this.showConfirm(this.$t('confirmRemoveProduct', { productName: item.name }));
                             if (!confirmed) {
                                 return; // User canceled the removal
                             }
                         }
-
-                        await this.db.transaction('rw', this.db.cart, async (trans) => {
-                            if (newQuantity <= 0) {
-                                await trans.cart.delete(item.id);
-                            } else {
-                                await trans.cart.update(item.id, { quantity: newQuantity });
-                            }
-                        });
+                        
+                        await databaseService.updateCartQuantity(item, change, productInStock ? productInStock.stock : 0);
                         await this.loadCart();
                     } catch (error) {
-                        console.error("Error updating quantity:", error);
+                         if (error.message === 'maxQuantityReached') {
+                            this.showAlert(this.$t('maxQuantityReached'));
+                        } else {
+                            console.error("Error updating quantity:", error);
+                        }
                     }
                 },
                 async addNewProduct() {
@@ -941,7 +922,7 @@
                             images: this.newProductImage ? this.newProductImage.split(',').map(s => s.trim()) : [],
                             deleted: false
                         };
-                        await this.db.products.add(newProduct);
+                        await databaseService.addItem('products', newProduct);
                         await this.loadProducts();
                         this.newProductName = '';
                         this.newProductPrice = null;
@@ -970,37 +951,32 @@
                         images: [],
                         deleted: false
                     };
-                    await this.db.products.add(newProduct);
+                    await databaseService.addItem('products', newProduct);
                     await this.loadProducts();
                 },
                 async seedInitialData() {
-                    // This method is now called explicitly when the DB is empty
                     try {
                         const response = await fetch('shoppingcart_backup.json');
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         const data = await response.json();
+                        
+                        const mappedData = {
+                             products: data.products ? data.products.map(p => ({
+                                id: p.id || this.generateUUID(),
+                                name: p.name,
+                                price: p.price,
+                                stock: p.stock,
+                                brand: p.brand,
+                                rating: p.rating,
+                                images: p.images || [],
+                                deleted: p.deleted || false
+                            })) : [],
+                            carouselImages: data.carouselImages || []
+                        };
 
-                        await this.db.transaction('rw', this.db.products, this.db.carouselImages, async () => {
-                            if (data.products && Array.isArray(data.products)) {
-                                const validProducts = data.products.map(p => ({
-                                    id: p.id || this.generateUUID(),
-                                    name: p.name,
-                                    price: p.price,
-                                    stock: p.stock,
-                                    brand: p.brand,
-                                    rating: p.rating,
-                                    images: p.images || [],
-                                    deleted: p.deleted || false
-                                }));
-                                await this.db.products.bulkAdd(validProducts);
-                            }
-
-                            if (data.carouselImages && Array.isArray(data.carouselImages)) {
-                                await this.db.carouselImages.bulkAdd(data.carouselImages);
-                            }
-                        });
+                        await databaseService.seedData(mappedData);
                         console.log("Database seeded successfully.");
                     } catch (error) {
                         console.error("Failed to seed initial data from JSON:", error);
@@ -1009,10 +985,7 @@
                 async deleteProduct(product) {
                     if (confirm(this.$t('deleteConfirmation', { productName: product.name }))) {
                         try {
-                            await this.db.transaction('rw', this.db.products, this.db.cart, async (trans) => {
-                                await trans.products.update(product.id, { deleted: true });
-                                await trans.cart.where('productId').equals(product.id).delete();
-                            });
+                            await databaseService.deleteProduct(product.id);
                             await this.loadProducts();
                             await this.loadCart();
                         } catch (error) {
@@ -1023,9 +996,7 @@
                 },
                 async restoreProduct(product) {
                     try {
-                        await this.db.transaction('rw', this.db.products, async (trans) => {
-                            await trans.products.update(product.id, { deleted: false });
-                        });
+                        await databaseService.updateItem('products', product.id, { deleted: false });
                         await this.loadProducts();
                     } catch (error) {
                         console.error("Error restoring product:", error);
@@ -1034,7 +1005,7 @@
                 },
                 async clearCart() {
                     try {
-                        await this.db.cart.clear();
+                        await databaseService.clearStore('cart');
                         await this.loadCart();
                     } catch (error) {
                         console.error("Error clearing cart:", error);
@@ -1063,7 +1034,7 @@
                     }
 
                     try {
-                        this.isProcessingOrder = true; // 開始處理訂單，顯示載入畫面
+                        this.isProcessingOrder = true;
 
                         const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                         const order = {
@@ -1071,33 +1042,12 @@
                             total: this.cartTotal,
                             paymentMethod: this.paymentMethod,
                             timestamp: new Date().toISOString(),
-                            items: this.cart.map(item => ({ ...item })), // 複製購物車商品，避免引用問題
-                            deliveryStatus: 'Order Placed', // Initial status
+                            items: this.cart.map(item => ({ ...item })),
+                            deliveryStatus: 'Order Placed',
                             deliveryHistory: [{ status: 'Order Placed', timestamp: new Date().toISOString() }]
                         };
 
-                        await this.db.transaction('rw', this.db.orders, this.db.products, this.db.cart, this.db.stockHistory, async (trans) => {
-                            await trans.orders.add(order);
-
-                            // 減少商品庫存並記錄歷史
-                            for (const cartItem of this.cart) {
-                                const productInDb = await trans.products.get(cartItem.productId); // Get product from DB within transaction
-                                if (productInDb) {
-                                    const oldStock = productInDb.stock; // Use stock from DB
-                                    const newStock = oldStock - cartItem.quantity;
-                                    await trans.products.update(productInDb.id, { stock: newStock });
-                                    await trans.stockHistory.add({
-                                        productId: productInDb.id,
-                                        timestamp: new Date().toISOString(),
-                                        oldStock,
-                                        newStock,
-                                        reason: `Order ${orderId}`
-                                    });
-                                }
-                            }
-
-                            await trans.cart.clear(); // 清空購物車
-                        });
+                        await databaseService.processCheckout(order, this.cart);
 
                         await this.loadProducts();
                         await this.loadCart();
@@ -1105,14 +1055,14 @@
 
                         await new Promise(resolve => setTimeout(resolve, 1000));
 
-                        this.isProcessingOrder = false; // 處理完成，關閉載入畫面
-                        this.orderConfirmation = order; // 顯示訂單確認資訊
-                        this.closeModal(); // Close checkout modal
-                        this.openModal('orderConfirmation', order); // Open order confirmation modal
-                        alert(this.$t('checkoutSuccess'));
+                        this.isProcessingOrder = false;
+                        this.orderConfirmation = order;
+                        this.closeModal();
+                        this.openModal('orderConfirmation', order);
+                        this.showAlert(this.$t('checkoutSuccess'));
 
                     } catch (error) {
-                        this.isProcessingOrder = false; // 處理失敗，關閉載入畫面
+                        this.isProcessingOrder = false;
                         console.error("Error processing checkout:", error);
                         alert(this.$t('checkoutFailed'));
                     }
@@ -1122,13 +1072,10 @@
                     this.openModal('orderHistory');
                 },
                 async loadOrderHistory() {
-                    if (!this.db) return;
                     try {
-                        let orders = await this.db.orders.toArray();
-                        // Ensure all orders have a deliveryHistory array
+                        let orders = await databaseService.getAll('orders');
                         orders = orders.map(order => {
                             if (!order.deliveryHistory) {
-                                // Initialize with the current status if history is missing
                                 order.deliveryHistory = [{
                                     status: order.deliveryStatus || 'Order Placed',
                                     timestamp: order.timestamp || new Date().toISOString()
@@ -1145,10 +1092,17 @@
                 getStepClass(order, status) {
                     const currentIndex = this.deliveryStatuses.indexOf(order.deliveryStatus);
                     const stepIndex = this.deliveryStatuses.indexOf(status);
+                    const isFinalState = order.deliveryStatus === 'Pending Review';
+                    
+                    // Check if all items in the order have been reviewed.
+                    const allItemsReviewed = order.items.every(item => this.isReviewed(order.orderId, item.productId));
+
                     return {
                         'step': true,
-                        'completed': stepIndex < currentIndex,
-                        'active': stepIndex === currentIndex
+                        // A step is completed if it's a past step, OR if the current step is the final one AND all items are reviewed.
+                        'completed': stepIndex < currentIndex || (stepIndex === currentIndex && isFinalState && allItemsReviewed),
+                        // A step is active if it's the current step, BUT NOT if it's the final state and all items are reviewed (because then it's completed).
+                        'active': stepIndex === currentIndex && !(isFinalState && allItemsReviewed),
                     };
                 },
 
@@ -1170,35 +1124,32 @@
 
                 async updateDeliveryStatus(order) {
                     const currentIndex = this.deliveryStatuses.indexOf(order.deliveryStatus);
+                    if (currentIndex >= this.deliveryStatuses.length - 1) return; // Already at the end
 
-                    // If the order is already 'Order Complete', check if all products are reviewed
-                    if (order.deliveryStatus === 'Order Complete') {
-                        const allProductsReviewed = order.items.every(item => this.isReviewed(order.orderId, item.productId));
-                        if (!allProductsReviewed) {
-                            this.showAlert(this.$t('cannotUpdateUnreviewedOrder'));
-                            return;
-                        }
+                    const nextStatus = this.deliveryStatuses[currentIndex + 1];
+
+                    // ONLY check for reviews when moving from 'Order Complete' to the final 'Pending Review' state.
+                    if (order.deliveryStatus === 'Order Complete' && nextStatus === 'Pending Review') {
+                        const allReviewed = order.items.every(item => this.isReviewed(order.orderId, item.productId));
+                        // if (!allReviewed) {
+                        //     this.showAlert(this.$t('cannotUpdateUnreviewedOrder'));
+                        //     return;
+                        // }
                     }
 
-                    if (currentIndex < this.deliveryStatuses.length - 1) {
-                        const nextStatus = this.deliveryStatuses[currentIndex + 1];
-                        try {
-                            await this.db.transaction('rw', this.db.orders, async (trans) => {
-                                const orderToUpdate = await trans.orders.get(order.id);
-                                if (orderToUpdate) {
-                                    orderToUpdate.deliveryStatus = nextStatus;
-                                    if (!orderToUpdate.deliveryHistory) {
-                                        orderToUpdate.deliveryHistory = [];
-                                    }
-                                    orderToUpdate.deliveryHistory.push({ status: nextStatus, timestamp: new Date().toISOString() });
-                                    await trans.orders.put(orderToUpdate);
-                                }
+                    try {
+                        const orderToUpdate = await databaseService.getItem('orders', order.id);
+                        if (orderToUpdate) {
+                            const newHistory = [...(orderToUpdate.deliveryHistory || []), { status: nextStatus, timestamp: new Date().toISOString() }];
+                            await databaseService.updateItem('orders', order.id, {
+                                deliveryStatus: nextStatus,
+                                deliveryHistory: newHistory
                             });
                             await this.loadOrderHistory();
-                        } catch (error) {
-                            console.error("Error updating delivery status:", error);
-                            this.showAlert('Failed to update status.');
                         }
+                    } catch (error) {
+                        console.error("Error updating delivery status:", error);
+                        this.showAlert('Failed to update status.');
                     }
                 },
                 startEditStock(product) {
@@ -1206,68 +1157,43 @@
                 },
                 async confirmEditProductDetails() {
                     const product = this.currentModal.data.product;
-                    const newProductName = this.currentModal.data.newProductName;
-                    const newProductPrice = parseFloat(this.currentModal.data.newProductPrice);
-                    const newProductStock = parseInt(this.currentModal.data.newProductStock);
-                    const newProductBrand = this.currentModal.data.newProductBrand;
-                    const newProductImages = this.currentModal.data.newProductImage ? this.currentModal.data.newProductImage.split(',').map(s => s.trim()) : [];
-                    const stockChangeReason = this.currentModal.data.stockChangeReason;
+                    const details = {
+                        name: this.currentModal.data.newProductName,
+                        price: parseFloat(this.currentModal.data.newProductPrice),
+                        stock: parseInt(this.currentModal.data.newProductStock),
+                        brand: this.currentModal.data.newProductBrand,
+                        images: this.currentModal.data.newProductImage ? this.currentModal.data.newProductImage.split(',').map(s => s.trim()) : [],
+                        stockChangeReason: this.currentModal.data.stockChangeReason,
+                        stockChanged: parseInt(this.currentModal.data.newProductStock) !== product.stock
+                    };
 
-                    if (!newProductName || isNaN(newProductPrice) || newProductPrice <= 0 || isNaN(newProductStock) || newProductStock < 0) {
+                    if (!details.name || isNaN(details.price) || details.price <= 0 || isNaN(details.stock) || details.stock < 0) {
                         this.showAlert(this.$t('enterValidProduct'));
                         return;
                     }
 
-                    const oldStock = product.stock;
-                    const stockChanged = newProductStock !== oldStock;
-
-                    if (stockChanged && !stockChangeReason) {
+                    if (details.stockChanged && !details.stockChangeReason) {
                         this.showAlert(this.$t('reasonRequired'));
                         return;
                     }
 
                     try {
-                        await this.db.transaction('rw', this.db.products, this.db.cart, this.db.stockHistory, async (trans) => {
-                            await trans.products.update(product.id, {
-                                name: newProductName,
-                                price: newProductPrice,
-                                stock: newProductStock,
-                                brand: newProductBrand,
-                                images: newProductImages
-                            });
-
-                            // Update cart items with new product name and price
-                            const cartItemsToUpdate = await trans.cart.where('productId').equals(product.id).toArray();
-                            for (const cartItem of cartItemsToUpdate) {
-                                await trans.cart.update(cartItem.id, { name: newProductName, price: newProductPrice });
-                            }
-
-                            if (stockChanged) {
-                                await trans.stockHistory.add({
-                                    productId: product.id,
-                                    timestamp: new Date().toISOString(),
-                                    oldStock,
-                                    newStock: newProductStock,
-                                    reason: stockChangeReason
-                                });
-                            }
-                        });
+                        await databaseService.updateProductDetails(product, details);
                         await this.loadProducts();
-                        await this.loadCart(); // Reload cart to reflect changes
+                        await this.loadCart();
                         this.closeModal();
                     } catch (error) {
-                        console.error("Error confirming product details edit:", error); // Log the full error object
-                        this.showAlert(`${this.$t('checkoutFailed')} ${error.message || error}`); // Display more specific error
+                        console.error("Error confirming product details edit:", error);
+                        this.showAlert(`${this.$t('checkoutFailed')} ${error.message || error}`);
                     }
                 },
                 cancelEditStock() {
                     this.closeModal();
                 },
                 async viewStockHistory(product) {
-                    if (!this.db) return;
-                    this.stockHistory = []; // Clear previous history
+                    this.stockHistory = [];
                     try {
-                        const history = await this.db.stockHistory.where('productId').equals(product.id).toArray();
+                        const history = await databaseService.getItemWhere('stockHistory', {productId: product.id}).toArray();
                         this.stockHistory = history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                         this.openModal('stockHistory', { product: product });
                     } catch (error) {
@@ -1275,25 +1201,10 @@
                         this.showAlert("Failed to load stock history.");
                     }
                 },
-                async logStockChange(productId, oldStock, newStock, reason) {
-                    if (!this.db) return;
-                    try {
-                        await this.db.stockHistory.add({
-                            productId,
-                            timestamp: new Date().toISOString(),
-                            oldStock,
-                            newStock,
-                            reason
-                        });
-                    } catch (error) {
-                        console.error("Error logging stock change:", error);
-                    }
-                },
                 async loadCarouselImages() {
-                    if (!this.db) return;
                     try {
-                        this.carouselImages = await this.db.carouselImages.toArray();
-                        this.initSwiper(); // Initialize Swiper after images are loaded
+                        this.carouselImages = await databaseService.getAll('carouselImages');
+                        this.initSwiper();
                     } catch (error) {
                         console.error("Could not load carousel images from IndexedDB:", error);
                     }
@@ -1354,63 +1265,27 @@
                         alert(this.$t('imageExists'));
                         return;
                     }
-
+                    
                     const newImage = { url: this.newImageUrl };
-                    const originalUrl = this.newImageUrl;
-
-                    // 1. Optimistic UI Update
-                    this.carouselImages.push(newImage);
-                    this.newImageUrl = '';
-                    this.initSwiper();
-
-                    // 2. Call the dedicated DB method
                     try {
-                        await this._dbAddImage(newImage);
+                        await databaseService.addItem('carouselImages', newImage);
+                        this.newImageUrl = '';
+                        await this.loadCarouselImages();
                     } catch (error) {
                         console.error("Error adding carousel image to DB:", error);
-                        // 3. Revert UI on failure
-                        const index = this.carouselImages.findIndex(img => img.url === newImage.url);
-                        if (index !== -1) {
-                            this.carouselImages.splice(index, 1);
-                        }
-                        this.newImageUrl = originalUrl;
-                        this.initSwiper();
                         alert(this.$t('dbErrorReverted'));
                     }
                 },
 
                 async removeCarouselImage(image) {
-                    const index = this.carouselImages.findIndex(img => img.url === image.url);
-                    if (index === -1) return;
-
                     try {
-                        await this._dbRemoveImage(image.url);
-
-                        // Update UI only after successful DB operation
-                        this.carouselImages.splice(index, 1);
-                        this.initSwiper();
+                        await databaseService.deleteItem('carouselImages', image.id);
+                        await this.loadCarouselImages();
                     } catch (error) {
                         console.error("Error removing carousel image from DB:", error);
                         alert('Failed to remove image.');
                     }
                 },
-
-                // --- Dedicated DB Methods ---
-                _dbAddImage(image) {
-                    return this.db.transaction('rw', this.db.carouselImages, async (trans) => {
-                        const carouselImagesTable = trans.table('carouselImages');
-                        await carouselImagesTable.add(image);
-                    });
-
-
-                },
-                _dbRemoveImage(url) {
-                    return this.db.transaction('rw', this.db.carouselImages, async (trans) => {
-                        const carouselImagesTable = trans.table('carouselImages');
-                        await carouselImagesTable.where('url').equals(url).delete();
-                    });
-                },
-
                 async fetchExchangeRates() {
                     const BASE_CURRENCY = 'TWD';
                     const API_URL = `https://h-web-api-a2gvavdbg9dggxa3.canadacentral-01.azurewebsites.net/api/Toolbox/ProxyAPI?Url=https%3A%2F%2Fv6.exchangerate-api.com%2Fv6%2Fa80efb83a09fb6489e1e5034%2Flatest%2F${BASE_CURRENCY}`;
@@ -1425,34 +1300,29 @@
                         const messages = i18n.global.messages;
 
                         if (dataParse) {
-                            for (const localeKey in messages) { // Use reactiveMessages
-                                if (messages[localeKey].currencySymbol) { // Use reactiveMessages
-                                    const targetCurrency = messages[localeKey].currencySymbol.replace(/[^a-zA-Z]/g, ''); // Extract currency code from symbol
+                            for (const localeKey in messages) {
+                                if (messages[localeKey].currencySymbol) {
+                                    const targetCurrency = messages[localeKey].currencySymbol.replace(/[^a-zA-Z]/g, '');
                                     if (dataParse.conversion_rates[targetCurrency]) {
-                                        messages[localeKey].exchangeRate = dataParse.conversion_rates[targetCurrency]; // Update reactiveMessages
+                                        messages[localeKey].exchangeRate = dataParse.conversion_rates[targetCurrency];
                                     } else {
                                         console.warn(`Exchange rate for ${targetCurrency} not found in API response.`);
-                                        messages[localeKey].exchangeRate = 1; // Fallback to 1 if not found
+                                        messages[localeKey].exchangeRate = 1;
                                     }
                                 }
                             }
                             console.log("Exchange rates updated successfully!");
-                            // No need to re-initialize i18n or set locale messages explicitly here
-                            // Vue's reactivity system will handle updates to reactiveMessages
                         } else {
                             console.error("API response does not contain conversion_rates.", data);
                         }
                     } catch (error) {
                         console.error("Failed to fetch exchange rates:", error);
-                        // Fallback to default exchange rates (1 for TWD, others as previously defined in i18n.js if not updated)
-                        // For simplicity, we'll just log the error. In a real app, you might want to set specific fallbacks.
                     }
                 },
 
                 async loadReviews() {
-                    if (!this.db) return;
                     try {
-                        this.reviews = await this.db.reviews.toArray();
+                        this.reviews = await databaseService.getAll('reviews');
                     } catch (error) {
                         console.error("Could not load reviews from IndexedDB:", error);
                     }
@@ -1473,13 +1343,13 @@
                     };
 
                     try {
-                        await this.db.reviews.add(review);
-                        await this.loadReviews(); // Reload reviews to update the UI
-                        this.newReview.rating = 0; // Reset form
+                        await databaseService.addItem('reviews', review);
+                        await this.loadReviews();
+                        this.newReview.rating = 0;
                         this.newReview.comment = '';
-                        this.closeModal(); // Close the review modal
+                        this.closeModal();
                         this.showAlert(this.$t('reviewSubmitted'));
-                        await this.checkAndCompleteOrder(orderId); // Check if order can be completed
+                        await this.checkAndCompleteOrder(orderId);
                     } catch (error) {
                         console.error("Error submitting review:", error);
                         this.showAlert('Failed to submit review.');
@@ -1488,37 +1358,27 @@
 
                 async checkAndCompleteOrder(orderId) {
                     try {
-                        const order = await this.db.orders.get(orderId);
-                        if (!order) return;
+                        const order = await databaseService.getItemWhere('orders', { orderId: orderId }).first();
+                        if (!order || order.deliveryStatus !== 'Order Complete') {
+                            // Only proceed if the order exists and is in the 'Order Complete' state.
+                            return;
+                        }
 
-                        const orderProductIds = order.items.map(item => item.productId);
-                        const reviewsForOrder = await this.db.reviews.where('orderId').equals(orderId).toArray();
-
-                        const allReviewed = orderProductIds.every(productId =>
-                            reviewsForOrder.some(review => review.productId === productId)
+                        const allReviewed = order.items.every(item =>
+                            this.isReviewed(order.orderId, item.productId)
                         );
 
-                        // If all products are reviewed and the order is not already in 'Pending Review' status
-                        if (allReviewed && order.deliveryStatus !== 'Pending Review') {
-                            let latestReviewTimestamp = 0;
-                            reviewsForOrder.forEach(review => {
-                                if (review.timestamp > latestReviewTimestamp) {
-                                    latestReviewTimestamp = review.timestamp;
-                                }
+                        if (allReviewed) {
+                            const latestReviewTimestamp = new Date().getTime(); // Use current time for the final step
+                            const newHistory = [...(order.deliveryHistory || []), { status: 'Pending Review', timestamp: new Date(latestReviewTimestamp).toISOString() }];
+                            
+                            await databaseService.updateItem('orders', order.id, {
+                                deliveryStatus: 'Pending Review',
+                                deliveryHistory: newHistory
                             });
 
-                            order.deliveryStatus = 'Pending Review'; // Set to Pending Review
-                            if (!order.deliveryHistory) {
-                                order.deliveryHistory = [];
-                            }
-                            order.deliveryHistory.push({
-                                status: 'Pending Review', // Record the transition to Pending Review
-                                timestamp: new Date(latestReviewTimestamp).toISOString()
-                            });
-
-                            await this.db.orders.put(order);
                             await this.loadOrderHistory();
-                            this.showAlert(this.$t('orderCompletedAutomatically', { orderId: order.orderId }));
+                            // this.showAlert(this.$t('orderCompletedAutomatically', { orderId: order.orderId }));
                         }
                     } catch (error) {
                         console.error("Error checking and completing order:", error);
@@ -1526,18 +1386,14 @@
                 },
             },
             async created() {
-                  this.setupDatabase();
                 try {
-                    await this.db.open();
-
-                    // Check if the database is empty. If so, seed it.
-                    const productCount = await this.db.products.count();
+                    await databaseService.init();
+                    const productCount = await databaseService.db.products.count();
                     if (productCount === 0) {
                         console.log("Database is empty, seeding initial data...");
                         await this.seedInitialData();
                     }
 
-                    // Now that the DB is open (and populated if it was the first time), load all data.
                     await Promise.all([
                         this.loadProducts(),
                         this.loadCart(),
@@ -1560,18 +1416,7 @@
             }
         });
 
-
-
-        // Initialize i18n with the reactive messages
-        // const i18n = createI18n({
-        //     locale: 'zh-TW', // 預設語言
-        //     fallbackLocale: 'en-US',
-        //     messages: reactiveMessages, // Use the reactive messages object
-        // });
-
         app.use(i18n);
-
-
         app.component('header-component', headerComponent);
         app.mount('#app');
     </script>
